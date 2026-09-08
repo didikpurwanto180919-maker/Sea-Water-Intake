@@ -136,7 +136,7 @@ REFRESH_INTERVAL_SEC = 60
 count = st_autorefresh(
     interval=REFRESH_INTERVAL_SEC * 1000,
     limit=None,
-    key="jellyfish_auto_refresh_v2",
+    key="jellyfish_auto_refresh_v3",
 )
 
 GRATI_LAT = -7.6433
@@ -178,7 +178,6 @@ def get_live_realtime_ocean_data(refresh_counter):
         do_level = 5.9
         turbidity = 6.6
 
-        # Pasang Surut Logic berdasarkan jam
         hour = wib_now.hour
         tide_phase = 1 if (10 <= hour <= 15 or 22 <= hour <= 3) else 0
         sea_level = 0.3
@@ -258,7 +257,6 @@ def train_calibrated_model():
     tbs_torque = np.random.uniform(10.0, 95.0, size=n_samples)
     month = np.random.randint(1, 13, size=n_samples)
 
-    # Bobot presisi Selat Madura: Kombinasi Musim + Arus Kencang + ΔP Screen
     is_peak_month = np.isin(month, [8, 9, 10, 11])
     is_onshore_flow = (current_speed >= 0.8) & (tide_phase == 1)
     is_physical_clog = (delta_p >= 0.45) | (tbs_torque >= 60.0)
@@ -494,11 +492,10 @@ if risk_class == 2:
     """
     components.html(sound_script, height=0, width=0)
 
-# PANEL MUSIMAN
 wib_now = datetime.datetime.now(WIB_TZ)
-current_month = wib_now.month
 year_current = wib_now.year
 
+# PANEL MUSIMAN (DIKUNCI KE FASE PERALIHAN / PANCAROBA)
 st.markdown(
     """
 <div class="forecast-card">
@@ -529,9 +526,9 @@ with fc1:
 with fc2:
     st.markdown(
         """
-    <div class="metric-label">🌊 Kemunculan Awal Awal Musim</div>
-    <div class="metric-value" style="color: #00d2ff;">Mei – Juni</div>
-    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Fase Peralihan / Pancaroba</div>
+    <div class="metric-label">🌊 Siklus/Fase Musim</div>
+    <div class="metric-value" style="color: #f59e0b;">Fase Peralihan / Pancaroba</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Transisi Pola Arus & Perubahan Suhu</div>
     """,
         unsafe_allow_html=True,
     )
@@ -548,15 +545,8 @@ with fc3:
     )
 
 with fc4:
-    if 8 <= current_month <= 11:
-        season_status = "🚨 HIGH RISK SEASON (PUNCAK SERANGAN)"
-        season_color = "#ef4444"
-    elif 5 <= current_month <= 7:
-        season_status = "⚠️ MODERATE SEASON (FASE TRANSISI)"
-        season_color = "#f59e0b"
-    else:
-        season_status = "🟢 LOW RISK SEASON (SANGAT AMAN)"
-        season_color = "#10b981"
+    season_status = "⚠️ FASE PERALIHAN / PANCAROBA"
+    season_color = "#f59e0b"
 
     st.markdown(
         f"""
@@ -596,7 +586,7 @@ with col_status:
             """
         <div class="status-box-warning">
             <h3 style="margin:0; color:#f59e0b; font-weight:800;">⚠️ STATUS WASPADA: INDIKASI PENUMPUKAN</h3>
-            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal. Tingkatkan inspeksi visual kanal SWI tiap 30 menit.</p>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal pada Fase Peralihan / Pancaroba. Tingkatkan inspeksi visual kanal SWI tiap 30 menit.</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -606,7 +596,7 @@ with col_status:
             """
         <div class="status-box-safe">
             <h3 style="margin:0; color:#10b981; font-weight:800;">🟢 KONDISI NORMAL: AMAN OPERASIONAL</h3>
-            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Aman, tidak ada indikasi serangan ubur-ubur di intake saat ini. Kendati dalam musim puncak (September), arus lokal dan pasang surut (Neap Tide) menahan pergerakan kawanan ubur-ubur.</p>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Aman, tidak ada indikasi serangan ubur-ubur di intake saat ini. Meskipun dalam Fase Peralihan / Pancaroba, arus lokal dan pasang surut (Neap Tide) menahan pergerakan kawanan ubur-ubur.</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -787,8 +777,7 @@ with c_graph1:
         )
     )
 
-    # Menambahkan penanda posisi real-time saat ini
-    curr_m_idx = current_month - 1
+    curr_m_idx = (wib_now.month - 1) % 12
     fig_season.add_trace(
         go.Scatter(
             x=[months[curr_m_idx]],
