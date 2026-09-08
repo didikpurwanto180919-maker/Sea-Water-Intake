@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 from xgboost import XGBClassifier
@@ -308,13 +309,8 @@ def train_high_precision_model():
 model, train_df = train_high_precision_model()
 
 # ==========================================
-# 4. EXECUTIVE HEADER DASHBOARD
+# 4. SIDEBAR & INPUT SELECTION
 # ==========================================
-# Fetch data pertama kali
-if "mode_choice" not in st.session_state:
-    st.session_state.mode_choice = "⚡ Real-Time API (Selat Madura)"
-
-# Sidebar
 st.sidebar.header("🕹️ Mode Monitoring")
 mode_input = st.sidebar.radio(
     "Sumber Input Data:",
@@ -478,6 +474,22 @@ input_df = pd.DataFrame([{
 
 risk_class = model.predict(input_df)[0]
 probabilities = model.predict_proba(input_df)[0]
+
+# --- MODUL AUDIO ALARM AUTOMATIC PLAYBACK ---
+if risk_class == 2:
+    # Memutar Suara Sirine Alarm Darurat Menggunakan HTML5 Audio API
+    sound_script = """
+    <audio autoplay loop>
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+    <script>
+        var audio = document.getElementsByTagName('audio')[0];
+        audio.play().catch(function(error) {
+            console.log("Autoplay ditolak oleh browser: " + error);
+        });
+    </script>
+    """
+    components.html(sound_script, height=0, width=0)
 
 # --- TOP ROW: STATUS ALARM & GAUGE CHART ---
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
