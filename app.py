@@ -117,7 +117,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Configuration & Constants
+# Constants & Refresh Interval
 WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
 REFRESH_INTERVAL_SEC = 60
 
@@ -140,6 +140,7 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
     wib_time_str = wib_now.strftime("%d %B %Y | %H:%M:%S WIB")
 
     try:
+        # Weather API
         url_weather = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={GRATI_LAT}&longitude={GRATI_LON}&"
@@ -147,11 +148,12 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
         )
         req_w = requests.get(url_weather, timeout=5)
         res_w = req_w.json() if req_w.status_code == 200 else {}
-        curr_w = res_w.get("current") or {}
+        curr_w = res_w.get("current", {})
 
-        wind_speed = curr_w.get("wind_speed_10m", 6.5)
-        wind_dir = curr_w.get("wind_direction_10m", 145)
+        wind_speed = float(curr_w.get("wind_speed_10m", 6.5))
+        wind_dir = int(curr_w.get("wind_direction_10m", 145))
 
+        # Marine API
         url_marine = (
             f"https://marine-api.open-meteo.com/v1/marine?"
             f"latitude={OCEAN_LAT}&longitude={OCEAN_LON}&"
@@ -159,7 +161,7 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
         )
         req_m = requests.get(url_marine, timeout=5)
         res_m = req_m.json() if req_m.status_code == 200 else {}
-        curr_m = res_m.get("current") or {}
+        curr_m = res_m.get("current", {})
 
         sst = curr_m.get("sea_surface_temperature")
         sst = float(sst) if sst is not None else 30.1
@@ -173,7 +175,7 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
         wave_height = curr_m.get("wave_height")
         wave_height = float(wave_height) if wave_height is not None else 0.5
 
-        # Proxy parameters calculation
+        # Proxy Parameter Calculations
         chlorophyll = round(1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2)
         salinity = round(33.5 + (sst - 29.0) * 0.2, 1)
         do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
@@ -198,8 +200,8 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
             "current_speed": round(current_speed_ms, 2),
             "current_dir": current_dir,
             "wave_height": round(wave_height, 2),
-            "wind_speed": round(float(wind_speed), 1),
-            "wind_dir": int(wind_dir),
+            "wind_speed": round(wind_speed, 1),
+            "wind_dir": wind_dir,
             "tide_phase": tide_phase,
             "sea_level": sea_level,
             "delta_p": delta_p,
@@ -417,18 +419,35 @@ input_df = pd.DataFrame([{
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-# --- MODUL AUDIO ALARM (DENGAN RECOVERY UNTUK BROWSER AUTOPLAY POLICY) ---
+# --- MODUL AUDIO ALARM (AUTOPLAY RECOVERY SOLUTION) ---
 if risk_class == 2:
     sound_script = """
-    <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 6px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
-        <span style="color:#fca5a5; font-size: 11px;">🔔 Sirena alarm diaktifkan. Jika tidak terdengar suara, klik tombol di bawah:</span><br>
-        <button onclick="document.getElementById('alarm_audio').play()" style="background:#ef4444; color:white; border:none; padding:4px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:4px;">🔊 Play Alarm Sound</button>
+    <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
+        <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🔔 SIRENA SIRINE DARURAT DIAKTIFKAN</span><br>
+        <button onclick="playAlarm()" style="background:#ef4444; color:white; border:none; padding:4px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:4px;">🔊 Mainkan Suara Alarm</button>
     </div>
-    <audio id="alarm_audio" autoplay loop>
+    <audio id="alarm_audio" loop preload="auto">
         <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
     </audio>
+    <script>
+        function playAlarm() {
+            var audio = document.getElementById('alarm_audio');
+            if (audio) { audio.play(); }
+        }
+        window.addEventListener('load', function() {
+            var audio = document.getElementById('alarm_audio');
+            if (audio) {
+                var promise = audio.play();
+                if (promise !== undefined) {
+                    promise.catch(function(error) {
+                        console.log("Autoplay blocked by browser policy.");
+                    });
+                }
+            }
+        });
+    </script>
     """
-    components.html(sound_script, height=65)
+    components.html(sound_script, height=75)
 
 # --- TOP ROW: STATUS ALARM & GAUGE CHART ---
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
@@ -506,7 +525,7 @@ with col_gauge:
 
 with col_map:
     st.markdown("#### 📍 SWI Intake Grid Map")
-    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=15)
+    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=14)
     folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
         attr="Google Satellite",
@@ -516,7 +535,7 @@ with col_map:
     folium.Marker(
         [GRATI_LAT, GRATI_LON],
         popup="SWI Intake PLTGU Grati",
-        icon=folium.Icon(color=marker_color),
+        icon=folium.Icon(color=marker_color, icon="info-sign"),
     ).add_to(m)
 
     st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
