@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="Prediksi Serangan Ubur-Ubur SWI PLTGU Grati - ML",
+    page_title="Early Warning Serangan Ubur-Ubur SWI PLTGU Grati - ML",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -130,104 +130,99 @@ count = st_autorefresh(
 GRATI_LAT, GRATI_LON = -7.6433, 113.0238
 OCEAN_LAT, OCEAN_LON = -7.6400, 113.0238
 
+FEATURE_COLUMNS = [
+    "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
+    "current_speed", "current_dir", "wave_height", "wind_speed", "wind_dir",
+    "tide_phase", "sea_level", "delta_p", "flow_velocity", "tbs_torque"
+]
+
 
 # ==========================================
 # 2. FETCH REAL-TIME DATA VIA OPEN-METEO
 # ==========================================
+def fetch_json_safe(url: str, timeout: int = 5) -> dict:
+    try:
+        req = requests.get(url, timeout=timeout)
+        if req.status_code == 200:
+            return req.json()
+    except requests.exceptions.RequestException:
+        pass
+    return {}
+
+
 @st.cache_data(ttl=REFRESH_INTERVAL_SEC)
 def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
     wib_now = datetime.datetime.now(WIB_TZ)
     wib_time_str = wib_now.strftime("%d %B %Y | %H:%M:%S WIB")
 
-    try:
-        # Weather API
-        url_weather = (
-            f"https://api.open-meteo.com/v1/forecast?"
-            f"latitude={GRATI_LAT}&longitude={GRATI_LON}&"
-            f"current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
-        )
-        req_w = requests.get(url_weather, timeout=5)
-        res_w = req_w.json() if req_w.status_code == 200 else {}
-        curr_w = res_w.get("current", {})
+    # Weather API
+    url_weather = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={GRATI_LAT}&longitude={GRATI_LON}&"
+        f"current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
+    )
+    res_w = fetch_json_safe(url_weather)
+    curr_w = res_w.get("current", {})
 
-        wind_speed = float(curr_w.get("wind_speed_10m", 6.5))
-        wind_dir = int(curr_w.get("wind_direction_10m", 145))
+    wind_speed = float(curr_w.get("wind_speed_10m", 6.5))
+    wind_dir = int(curr_w.get("wind_direction_10m", 145))
 
-        # Marine API
-        url_marine = (
-            f"https://marine-api.open-meteo.com/v1/marine?"
-            f"latitude={OCEAN_LAT}&longitude={OCEAN_LON}&"
-            f"current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction,wave_height"
-        )
-        req_m = requests.get(url_marine, timeout=5)
-        res_m = req_m.json() if req_m.status_code == 200 else {}
-        curr_m = res_m.get("current", {})
+    # Marine API
+    url_marine = (
+        f"https://marine-api.open-meteo.com/v1/marine?"
+        f"latitude={OCEAN_LAT}&longitude={OCEAN_LON}&"
+        f"current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction,wave_height"
+    )
+    res_m = fetch_json_safe(url_marine)
+    curr_m = res_m.get("current", {})
 
-        sst = curr_m.get("sea_surface_temperature")
-        sst = float(sst) if sst is not None else 30.1
+    sst = curr_m.get("sea_surface_temperature")
+    sst = float(sst) if sst is not None else 30.1
 
-        current_speed_ms = curr_m.get("ocean_current_velocity")
-        current_speed_ms = float(current_speed_ms) if current_speed_ms is not None else 0.45
+    current_speed_ms = curr_m.get("ocean_current_velocity")
+    current_speed_ms = float(current_speed_ms) if current_speed_ms is not None else 0.45
 
-        current_dir = curr_m.get("ocean_current_direction")
-        current_dir = int(current_dir) if current_dir is not None else 165
+    current_dir = curr_m.get("ocean_current_direction")
+    current_dir = int(current_dir) if current_dir is not None else 165
 
-        wave_height = curr_m.get("wave_height")
-        wave_height = float(wave_height) if wave_height is not None else 0.5
+    wave_height = curr_m.get("wave_height")
+    wave_height = float(wave_height) if wave_height is not None else 0.5
 
-        # Proxy Parameter Calculations
-        chlorophyll = round(1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2)
-        salinity = round(33.5 + (sst - 29.0) * 0.2, 1)
-        do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
-        turbidity = round(3.0 + (wave_height * 8.0) + (wind_speed * 0.4), 1)
+    status_str = "ONLINE (Connected)" if (res_w and res_m) else "OFFLINE (Fallback)"
 
-        hour = wib_now.hour
-        tide_phase = 1 if (10 <= hour <= 15 or 22 <= hour <= 3) else 0
-        sea_level = round(1.2 if tide_phase == 1 else 0.3, 1)
+    # Proxy Parameter Calculations
+    chlorophyll = round(1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2)
+    salinity = round(33.5 + (sst - 29.0) * 0.2, 1)
+    do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
+    turbidity = round(3.0 + (wave_height * 8.0) + (wind_speed * 0.4), 1)
 
-        delta_p = round(0.12 + (current_speed_ms * 0.35) + (chlorophyll * 0.08), 2)
-        flow_velocity = round(0.40 + (current_speed_ms * 0.30), 2)
-        tbs_torque = round(15.0 + (delta_p * 55.0), 1)
+    hour = wib_now.hour
+    tide_phase = 1 if (10 <= hour <= 15 or 22 <= hour <= 3) else 0
+    sea_level = round(1.2 if tide_phase == 1 else 0.3, 1)
 
-        return {
-            "status": "ONLINE (Connected)",
-            "timestamp": wib_time_str,
-            "sst": round(sst, 2),
-            "chlorophyll_a": max(0.5, chlorophyll),
-            "salinity": salinity,
-            "do_level": max(1.0, do_level),
-            "turbidity": turbidity,
-            "current_speed": round(current_speed_ms, 2),
-            "current_dir": current_dir,
-            "wave_height": round(wave_height, 2),
-            "wind_speed": round(wind_speed, 1),
-            "wind_dir": wind_dir,
-            "tide_phase": tide_phase,
-            "sea_level": sea_level,
-            "delta_p": delta_p,
-            "flow_velocity": flow_velocity,
-            "tbs_torque": tbs_torque,
-        }
-    except Exception:
-        return {
-            "status": "OFFLINE (Fallback)",
-            "timestamp": wib_time_str,
-            "sst": 30.1,
-            "chlorophyll_a": 3.10,
-            "salinity": 33.8,
-            "do_level": 4.5,
-            "turbidity": 12.0,
-            "current_speed": 0.45,
-            "current_dir": 160,
-            "wave_height": 0.6,
-            "wind_speed": 7.5,
-            "wind_dir": 150,
-            "tide_phase": 1,
-            "sea_level": 1.1,
-            "delta_p": 0.35,
-            "flow_velocity": 0.55,
-            "tbs_torque": 35.0,
-        }
+    delta_p = round(0.12 + (current_speed_ms * 0.35) + (chlorophyll * 0.08), 2)
+    flow_velocity = round(0.40 + (current_speed_ms * 0.30), 2)
+    tbs_torque = round(15.0 + (delta_p * 55.0), 1)
+
+    return {
+        "status": status_str,
+        "timestamp": wib_time_str,
+        "sst": round(sst, 2),
+        "chlorophyll_a": max(0.5, chlorophyll),
+        "salinity": salinity,
+        "do_level": max(1.0, do_level),
+        "turbidity": turbidity,
+        "current_speed": round(current_speed_ms, 2),
+        "current_dir": current_dir,
+        "wave_height": round(wave_height, 2),
+        "wind_speed": round(wind_speed, 1),
+        "wind_dir": wind_dir,
+        "tide_phase": tide_phase,
+        "sea_level": sea_level,
+        "delta_p": delta_p,
+        "flow_velocity": flow_velocity,
+        "tbs_torque": tbs_torque,
+    }
 
 
 # ==========================================
@@ -294,7 +289,7 @@ def train_high_precision_model():
         "risk_level": labels,
     })
 
-    X = df.drop(columns=["risk_level"])
+    X = df[FEATURE_COLUMNS]
     y = df["risk_level"]
 
     model = XGBClassifier(
@@ -335,7 +330,9 @@ else:
             "⚠️ WASPADA: Indikasi Penumpukan",
             "🟢 NORMAL: Operational Safe",
         ),
+        key="preset_selection"
     )
+
     if preset == "🚨 KRITIS: SERANGAN UBUR-UBUR Massal":
         init_d = {
             "sst": 32.5, "chl": 5.80, "sal": 34.8, "do": 3.0, "turb": 32.0,
@@ -355,23 +352,42 @@ else:
             "tide": 0, "sl": 0.1, "dp": 0.10, "fv": 0.35, "torq": 15.0,
         }
 
+    # Penanganan Session State agar slider tidak ter-reset saat auto-refresh
+    if "last_preset" not in st.session_state or st.session_state.last_preset != preset:
+        st.session_state.last_preset = preset
+        st.session_state.sim_sst = init_d["sst"]
+        st.session_state.sim_chl = init_d["chl"]
+        st.session_state.sim_sal = init_d["sal"]
+        st.session_state.sim_do = init_d["do"]
+        st.session_state.sim_turb = init_d["turb"]
+        st.session_state.sim_cspd = init_d["cspd"]
+        st.session_state.sim_cdir = init_d["cdir"]
+        st.session_state.sim_wh = init_d["wh"]
+        st.session_state.sim_wspd = init_d["wspd"]
+        st.session_state.sim_wdir = init_d["wdir"]
+        st.session_state.sim_tide = init_d["tide"]
+        st.session_state.sim_sl = init_d["sl"]
+        st.session_state.sim_dp = init_d["dp"]
+        st.session_state.sim_fv = init_d["fv"]
+        st.session_state.sim_torq = init_d["torq"]
+
     data = {
         "timestamp": datetime.datetime.now(WIB_TZ).strftime("%d %B %Y | %H:%M:%S WIB"),
-        "sst": st.sidebar.slider("Suhu Laut (°C)", 25.0, 35.0, init_d["sst"]),
-        "chlorophyll_a": st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 8.0, init_d["chl"]),
-        "salinity": st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, init_d["sal"]),
-        "do_level": st.sidebar.slider("DO (mg/L)", 1.0, 8.0, init_d["do"]),
-        "turbidity": st.sidebar.slider("Turbidity (NTU)", 0.0, 50.0, init_d["turb"]),
-        "current_speed": st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 2.0, init_d["cspd"]),
-        "current_dir": st.sidebar.slider("Arah Arus (°)", 0, 360, init_d["cdir"]),
-        "wave_height": st.sidebar.slider("Tinggi Gelombang (m)", 0.0, 3.0, init_d["wh"]),
-        "wind_speed": st.sidebar.slider("Angin (Knot)", 0.0, 30.0, init_d["wspd"]),
-        "wind_dir": st.sidebar.slider("Arah Angin (°)", 0, 360, init_d["wdir"]),
-        "tide_phase": st.sidebar.selectbox("Siklus Pasang", (0, 1), index=init_d["tide"]),
-        "sea_level": st.sidebar.slider("Elevasi Muka Air (m)", -1.5, 2.5, init_d["sl"]),
-        "delta_p": st.sidebar.slider("ΔP Screen (mWC)", 0.0, 2.0, init_d["dp"]),
-        "flow_velocity": st.sidebar.slider("Flow Velocity (m/s)", 0.0, 1.5, init_d["fv"]),
-        "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, init_d["torq"]),
+        "sst": st.sidebar.slider("Suhu Laut (°C)", 25.0, 35.0, key="sim_sst"),
+        "chlorophyll_a": st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 8.0, key="sim_chl"),
+        "salinity": st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, key="sim_sal"),
+        "do_level": st.sidebar.slider("DO (mg/L)", 1.0, 8.0, key="sim_do"),
+        "turbidity": st.sidebar.slider("Turbidity (NTU)", 0.0, 50.0, key="sim_turb"),
+        "current_speed": st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 2.0, key="sim_cspd"),
+        "current_dir": st.sidebar.slider("Arah Arus (°)", 0, 360, key="sim_cdir"),
+        "wave_height": st.sidebar.slider("Tinggi Gelombang (m)", 0.0, 3.0, key="sim_wh"),
+        "wind_speed": st.sidebar.slider("Angin (Knot)", 0.0, 30.0, key="sim_wspd"),
+        "wind_dir": st.sidebar.slider("Arah Angin (°)", 0, 360, key="sim_wdir"),
+        "tide_phase": st.sidebar.selectbox("Siklus Pasang", (0, 1), key="sim_tide"),
+        "sea_level": st.sidebar.slider("Elevasi Muka Air (m)", -1.5, 2.5, key="sim_sl"),
+        "delta_p": st.sidebar.slider("ΔP Screen (mWC)", 0.0, 2.0, key="sim_dp"),
+        "flow_velocity": st.sidebar.slider("Flow Velocity (m/s)", 0.0, 1.5, key="sim_fv"),
+        "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
 # Executive Header
@@ -398,32 +414,16 @@ st.markdown(
 # ==========================================
 # 5. INFERENCE & DASHBOARD GRID
 # ==========================================
-input_df = pd.DataFrame([{
-    "sst": data["sst"],
-    "chlorophyll_a": data["chlorophyll_a"],
-    "salinity": data["salinity"],
-    "do_level": data["do_level"],
-    "turbidity": data["turbidity"],
-    "current_speed": data["current_speed"],
-    "current_dir": data["current_dir"],
-    "wave_height": data["wave_height"],
-    "wind_speed": data["wind_speed"],
-    "wind_dir": data["wind_dir"],
-    "tide_phase": data["tide_phase"],
-    "sea_level": data["sea_level"],
-    "delta_p": data["delta_p"],
-    "flow_velocity": data["flow_velocity"],
-    "tbs_torque": data["tbs_torque"],
-}])
+input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-# --- MODUL AUDIO ALARM (AUTOPLAY RECOVERY SOLUTION) ---
+# Modul Audio Alarm
 if risk_class == 2:
     sound_script = """
     <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
-        <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🔔 SIRENA SIRINE DARURAT DIAKTIFKAN</span><br>
+        <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🔔 SIRINE DARURAT DIAKTIFKAN</span><br>
         <button onclick="playAlarm()" style="background:#ef4444; color:white; border:none; padding:4px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:4px;">🔊 Mainkan Suara Alarm</button>
     </div>
     <audio id="alarm_audio" loop preload="auto">
@@ -449,7 +449,7 @@ if risk_class == 2:
     """
     components.html(sound_script, height=75)
 
-# --- TOP ROW: STATUS ALARM & GAUGE CHART ---
+# Status Alarm & Gauge Chart
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
