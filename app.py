@@ -30,29 +30,27 @@ GRATI_LON = 112.8943
 def get_live_ocean_data():
   try:
     # 1. API Weather & Wind (Live)
-    url_weather = f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
-    res_w = requests.get(url_weather, timeout=5).json()
-    wind_speed = res_w["current"]["wind_speed_10m"]
+    url_weather = (
+        f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
+    )
+    req_w = requests.get(url_weather, timeout=5)
+    wind_speed = (
+        req_w.json()["current"]["wind_speed_10m"] if req_w.ok else 6.5
+    )
 
     # 2. API Marine / Oceanography (SST, Wave, Current)
-    url_marine = f"https://marine-api.open-meteo.com/v1/marine?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=wave_height,ocean_current_velocity,sst"
-    res_m = requests.get(url_marine, timeout=5).json()
+    url_marine = (
+        f"https://marine-api.open-meteo.com/v1/marine?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=wave_height,ocean_current_velocity,sst"
+    )
+    req_m = requests.get(url_marine, timeout=5)
 
-    # Ekstraksi nilai live (apabila null, berikan fallback estimasi maritim)
-    current_data = res_m.get("current", {})
-    sst = current_data.get("sst")
-    if sst is None:
-      sst = 29.8  # Default rata-rata perairan Selat Madura
-
-    current_speed = current_data.get("ocean_current_velocity")
-    if current_speed is None:
-      current_speed = 0.35  # m/s
+    current_data = req_m.json().get("current", {}) if req_m.ok else {}
+    sst = current_data.get("sst") or 29.8
+    current_speed = current_data.get("ocean_current_velocity") or 0.35
 
     # Estimasi Salinitas & Klorofil-a (Parameter Biogeokimia Pesisir Grati)
     salinity = 33.2
-    chlorophyll = round(
-        1.5 + (sst - 28.0) * 0.4, 2
-    )  # Model estimasi kelimpahan plankton berbasis SST
+    chlorophyll = round(1.5 + (sst - 28.0) * 0.4, 2)
 
     return {
         "status": "Success",
@@ -64,7 +62,6 @@ def get_live_ocean_data():
         "wind_speed": round(wind_speed, 2),
     }
   except Exception as e:
-    # Fallback jika terjadi limit/koneksi terputus
     return {
         "status": f"Fallback Data ({e})",
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
@@ -82,7 +79,7 @@ def get_live_ocean_data():
 @st.cache_resource
 def train_jellyfish_model():
   np.random.seed(42)
-  n_samples = 1500
+  n_samples = 500  # Ditingkatkan efisiensinya agar training berjalan instan
 
   sst = np.random.normal(loc=29.5, scale=1.2, size=n_samples)
   salinity = np.random.normal(loc=32.5, scale=1.1, size=n_samples)
@@ -111,8 +108,9 @@ def train_jellyfish_model():
   X = df.drop(columns=["risk_level"])
   y = df["risk_level"]
 
+  # Estimators dikurangi untuk pemrosesan real-time di Streamlit Community Cloud
   model = XGBClassifier(
-      n_estimators=100, learning_rate=0.05, max_depth=4, eval_metric="mlogloss"
+      n_estimators=30, learning_rate=0.05, max_depth=3, eval_metric="mlogloss"
   )
   model.fit(X, y)
   return model
@@ -136,7 +134,7 @@ if data_source == "Live API (Real-Time)":
   chlorophyll = live_data["chlorophyll_a"]
   wind_speed = live_data["wind_speed"]
 
-  st.sidebar.success(f"Status Data: Live Open-Meteo API")
+  st.sidebar.success("Status Data: Live Open-Meteo API")
   st.sidebar.info(f"Last Update: {live_data['timestamp']}")
   if st.sidebar.button("🔄 Refresh Data Real-Time"):
     st.cache_data.clear()
