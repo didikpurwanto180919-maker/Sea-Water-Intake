@@ -15,8 +15,10 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="Early Warning Serangan Ubur-Ubur SWI PLTGU Grati - ML",
-    page_icon="⚡",
+    page_title="EWS Jellyfish SCADA – PLTGU Grati", layout="wide"
+)
+
+st.title("EWS Jellyfish SCADA – PLTGU Grati")
     layout="wide",
     initial_sidebar_state="expanded",
 )
