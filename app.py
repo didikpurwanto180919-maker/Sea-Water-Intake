@@ -109,6 +109,13 @@ st.markdown(
         color: #f87171;
         animation: blinker 1.5s linear infinite;
     }
+    .eta-box {
+        background: rgba(0, 210, 255, 0.1);
+        border: 1px solid #00d2ff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 10px;
+    }
     @keyframes blinker {
         50% { opacity: 0.6; }
     }
@@ -155,7 +162,6 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
     wib_now = datetime.datetime.now(WIB_TZ)
     wib_time_str = wib_now.strftime("%d %B %Y | %H:%M:%S WIB")
 
-    # Weather API
     url_weather = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={GRATI_LAT}&longitude={GRATI_LON}&"
@@ -167,7 +173,6 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
     wind_speed = float(curr_w.get("wind_speed_10m", 6.5))
     wind_dir = int(curr_w.get("wind_direction_10m", 145))
 
-    # Marine API
     url_marine = (
         f"https://marine-api.open-meteo.com/v1/marine?"
         f"latitude={OCEAN_LAT}&longitude={OCEAN_LON}&"
@@ -190,7 +195,6 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
 
     status_str = "ONLINE (Connected)" if (res_w and res_m) else "OFFLINE (Fallback)"
 
-    # Proxy Parameter Calculations
     chlorophyll = round(1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2)
     salinity = round(33.5 + (sst - 29.0) * 0.2, 1)
     do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
@@ -207,6 +211,7 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
     return {
         "status": status_str,
         "timestamp": wib_time_str,
+        "raw_datetime": wib_now,
         "sst": round(sst, 2),
         "chlorophyll_a": max(0.5, chlorophyll),
         "salinity": salinity,
@@ -370,8 +375,10 @@ else:
         st.session_state.sim_fv = init_d["fv"]
         st.session_state.sim_torq = init_d["torq"]
 
+    now_wib = datetime.datetime.now(WIB_TZ)
     data = {
-        "timestamp": datetime.datetime.now(WIB_TZ).strftime("%d %B %Y | %H:%M:%S WIB"),
+        "timestamp": now_wib.strftime("%d %B %Y | %H:%M:%S WIB"),
+        "raw_datetime": now_wib,
         "sst": st.sidebar.slider("Suhu Laut (°C)", 25.0, 35.0, key="sim_sst"),
         "chlorophyll_a": st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 8.0, key="sim_chl"),
         "salinity": st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, key="sim_sal"),
@@ -411,12 +418,23 @@ st.markdown(
 )
 
 # ==========================================
-# 5. INFERENCE & DASHBOARD GRID
+# 5. INFERENCE & KALKULASI ETA PREDIKSI
 # ==========================================
 input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
+
+# --- Kalkulasi Hidrodinamika ETA (Kedatangan) Ubur-ubur ---
+# Jarak sensor/lokasi oceanographic monitoring ke Kanal Intake Grati = ~400 meter
+DISTANCE_TO_INTAKE_M = 400.0  
+eff_speed = max(data["current_speed"], 0.05)
+time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
+eta_minutes = int(time_seconds / 60)
+
+current_dt = data["raw_datetime"]
+eta_dt = current_dt + datetime.timedelta(minutes=eta_minutes)
+eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
 
 # Modul Audio Alarm
 if risk_class == 2:
@@ -455,11 +473,16 @@ with col_status:
     st.markdown("#### 🚨 Early Warning Alarm Status")
     if risk_class == 2:
         st.markdown(
-            """
+            f"""
         <div class="status-box-danger">
             <h3 style="margin:0; color:#ef4444; font-weight:800; font-size:16px;">🚨 STATUS KRITIS: SERANGAN UBUR-UBUR</h3>
             <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:8px;">Potensi penyumbatan massal pada Bar Screen & CWP condenser intake.</p>
-            <hr style="border-color:#ef4444; margin: 6px 0;">
+            <div class="eta-box">
+                <span style="color:#94a3b8; font-size:11px;">⏱️ ESTIMASI KEDATANGAN UBUR-UBUR (ETA):</span><br>
+                <b style="color:#00d2ff; font-size:18px;">Pukul {eta_time_str}</b> 
+                <span style="color:#fca5a5; font-size:12px;">(~{eta_minutes} Menit lagi)</span>
+            </div>
+            <hr style="border-color:#ef4444; margin: 8px 0;">
             <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
             <span style="font-size:11px; color:#fca5a5;">
             1. Jalankan TBS mode <b>Continuous High Speed</b>.<br>
@@ -472,10 +495,15 @@ with col_status:
         )
     elif risk_class == 1:
         st.markdown(
-            """
+            f"""
         <div class="status-box-warning">
             <h3 style="margin:0; color:#f59e0b; font-weight:800; font-size:16px;">⚠️ STATUS WASPADA: INDIKASI PENUMPUKAN</h3>
-            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:0;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal. Tingkatkan inspeksi visual kanal SWI tiap 30 menit.</p>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:8px;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal.</p>
+            <div class="eta-box">
+                <span style="color:#94a3b8; font-size:11px;">⏱️ ESTIMASI PENUMPUKAN DARI POINT OF INTEREST:</span><br>
+                <b style="color:#00d2ff; font-size:16px;">Pukul {eta_time_str}</b> 
+                <span style="color:#fbbf24; font-size:12px;">(~{eta_minutes} Menit)</span>
+            </div>
         </div>
         """,
             unsafe_allow_html=True,
@@ -523,7 +551,7 @@ with col_gauge:
     st.plotly_chart(fig_gauge, use_container_width=True)
 
 with col_map:
-    st.markdown("#### 📍 SWI Intake Grid Map")
+    st.markdown("#### 📍 SWI Intake Grid Map & Flow Vector")
     m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=14)
     folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
@@ -531,10 +559,28 @@ with col_map:
     ).add_to(m)
 
     marker_color = "red" if risk_class == 2 else ("orange" if risk_class == 1 else "green")
+    
+    # Titik SWI Intake
     folium.Marker(
         [GRATI_LAT, GRATI_LON],
         popup="SWI Intake PLTGU Grati",
         icon=folium.Icon(color=marker_color, icon="info-sign"),
+    ).add_to(m)
+
+    # Titik Monitoring Arus Oseanografi (400m di lepas pantai)
+    folium.Marker(
+        [OCEAN_LAT, OCEAN_LON],
+        popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
+        icon=folium.Icon(color="blue", icon="tint"),
+    ).add_to(m)
+
+    # Garis Vektor Arus dari Ocean Point ke SWI Intake
+    folium.PolyLine(
+        locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
+        color="#00d2ff",
+        weight=2.5,
+        dash_array="5, 10",
+        popup=f"Trajektori Pergerakan (ETA: ~{eta_minutes} Menit)"
     ).add_to(m)
 
     st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
