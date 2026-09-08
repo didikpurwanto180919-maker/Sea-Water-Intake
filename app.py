@@ -28,20 +28,18 @@ count = st_autorefresh(interval=60000, limit=None, key="jellyfish_auto_refresh")
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
 st.subheader(
-    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Optimized & High Precision)"
+    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update 60s)"
 )
 st.markdown("---")
 
 # ==========================================
 # KOORDINAT PRESISI SWI INTAKE PLTGU GRATI
-# Location: Inlet Canal Mouth / Jetty SWI PLTGU Grati
 # ==========================================
-GRATI_LAT = -7.6531
-GRATI_LON = 113.0289
+GRATI_LAT = -7.6433
+GRATI_LON = 113.0238
 
-# Titik Sampel Oseanografi Open-Meteo (~300m ke Laut Lepas)
-OCEAN_LAT = -7.6495
-OCEAN_LON = 113.0289
+OCEAN_LAT = -7.6400
+OCEAN_LON = 113.0238
 
 
 # ==========================================
@@ -106,19 +104,21 @@ def get_live_ocean_data(refresh_id):
 
 
 # ==========================================
-# TRAINING MODEL MACHINE LEARNING (XGBoost)
+# TRAINING MODEL MACHINE LEARNING (XGBoost Optimized)
 # ==========================================
 @st.cache_resource
 def train_jellyfish_model():
     np.random.seed(42)
     n_samples = 2000
 
+    # Sintesis distribusi data parameter oceanografi pesisir Grati
     sst = np.random.normal(loc=29.5, scale=1.1, size=n_samples)
     salinity = np.random.normal(loc=32.8, scale=0.9, size=n_samples)
     current_speed = np.random.exponential(scale=0.28, size=n_samples)
     chlorophyll = np.random.gamma(shape=2.5, scale=0.6, size=n_samples)
     wind_speed = np.random.uniform(1.0, 15.0, size=n_samples)
 
+    # Indeks Risiko Non-Linear berbasis Fisiologi Ubur-Ubur
     risk_score = (
         (sst - 28.0) * 0.40
         + (chlorophyll * 0.35)
@@ -141,6 +141,7 @@ def train_jellyfish_model():
     X = df.drop(columns=["risk_level"])
     y = df["risk_level"]
 
+    # Hyperparameter Tuning untuk Presisi Tinggi
     model = XGBClassifier(
         n_estimators=100,
         learning_rate=0.03,
@@ -241,7 +242,7 @@ with col_left:
     )
 
 with col_right:
-    st.subheader("📍 Peta Satelit Intake SWI PLTGU Grati")
+    st.subheader("📍 Koordinat Intake PLTGU Grati")
     st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
 
     m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=16)
@@ -257,15 +258,9 @@ with col_right:
 
     folium.Marker(
         [GRATI_LAT, GRATI_LON],
-        popup="Inlet Mouth Intake SWI PLTGU Grati",
+        popup="Inlet SWI PLTGU Grati",
         tooltip="Inlet SWI PLTGU Grati",
         icon=folium.Icon(color="red", icon="info-sign"),
     ).add_to(m)
 
-    st_folium(
-        m,
-        width=420,
-        height=320,
-        key=f"grati_map_{count}",
-        returned_objects=[],
-    )
+    st_folium(m, width=420, height=320, key=f"grati_map_{count}")
