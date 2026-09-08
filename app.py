@@ -6,7 +6,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 from xgboost import XGBClassifier
@@ -25,13 +24,11 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-    /* Styling Latar Belakang & Font */
     .stApp {
         background-color: #0e1726;
         color: #e0e6ed;
     }
     
-    /* Executive Header Banner */
     .executive-header {
         background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
         border-left: 6px solid #00d2ff;
@@ -41,7 +38,7 @@ st.markdown(
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .executive-title {
-        font-size: 26px;
+        font-size: 24px;
         font-weight: 800;
         color: #ffffff;
         letter-spacing: 0.5px;
@@ -53,7 +50,6 @@ st.markdown(
         margin-top: 4px;
     }
     
-    /* Card Container 4 Pilar */
     .pillar-card {
         background-color: #1a2332;
         border: 1px solid #2e3b4e;
@@ -63,7 +59,7 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     .pillar-title {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         color: #00d2ff;
         text-transform: uppercase;
@@ -73,9 +69,8 @@ st.markdown(
         padding-bottom: 6px;
     }
     
-    /* Metric Item Box */
     .metric-value {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
         color: #ffffff;
     }
@@ -85,19 +80,26 @@ st.markdown(
         text-transform: uppercase;
     }
     
-    /* Pulse Status Alert */
+    /* Box Status Alert Seragam */
     .status-box-safe {
         background: rgba(16, 185, 129, 0.1);
-        border: 1px solid #10b981;
+        border: 2px solid #10b981;
         border-radius: 10px;
-        padding: 15px;
+        padding: 18px;
         color: #10b981;
+    }
+    .status-box-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border: 2px solid #f59e0b;
+        border-radius: 10px;
+        padding: 18px;
+        color: #fbbf24;
     }
     .status-box-danger {
         background: rgba(239, 68, 68, 0.15);
         border: 2px solid #ef4444;
         border-radius: 10px;
-        padding: 15px;
+        padding: 18px;
         color: #f87171;
         animation: blinker 1.5s linear infinite;
     }
@@ -463,28 +465,35 @@ with col_status:
         st.markdown(
             """
         <div class="status-box-danger">
-            <h3 style="margin:0; color:#ef4444;">🚨 STATUS KRITIS: SERANGAN UBUR-UBUR DETEKSI TINGGI</h3>
-            <p style="margin-top:8px; font-size:13px; color:#e2e8f0;">Potensi penyumbatan massal pada Bar Screen & CWP condenser intake.</p>
-            <hr style="border-color:#ef4444;">
-            <b>MANDATORI OPERATOR SHIFT:</b><br>
+            <h3 style="margin:0; color:#ef4444; font-weight:800;">🚨 STATUS KRITIS: SERANGAN UBUR-UBUR</h3>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:10px;">Potensi penyumbatan massal pada Bar Screen & CWP condenser intake.</p>
+            <hr style="border-color:#ef4444; margin: 8px 0;">
+            <b style="color:#ffffff;">MANDATORI OPERATOR SHIFT:</b><br>
+            <span style="font-size:12px; color:#fca5a5;">
             1. Jalankan TBS mode <b>Continuous High Speed</b>.<br>
             2. Aktifkan Screen Wash Pump Pressure Max.<br>
             3. Siapkan derating jika ΔP > 0.80 mWC.
+            </span>
         </div>
         """,
             unsafe_allow_html=True,
         )
     elif risk_class == 1:
-        st.warning(
-            "⚠️ **STATUS WASPADA: INDIKASI AKUMULASI UBUR-UBUR**\nTingkatkan"
-            " inspeksi visual di kanal SWI tiap 30 menit."
+        st.markdown(
+            """
+        <div class="status-box-warning">
+            <h3 style="margin:0; color:#f59e0b; font-weight:800;">⚠️ STATUS WASPADA: INDIKASI PENUMPUKAN</h3>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal. Tingkatkan inspeksi visual kanal SWI tiap 30 menit.</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
         )
     else:
         st.markdown(
             """
         <div class="status-box-safe">
-            <h3 style="margin:0; color:#10b981;">🟢 KONDISI NORMAL: AMAN OPERASIONAL</h3>
-            <p style="margin-top:5px; font-size:13px; color:#94a3b8;">Parameter hidrodinamika & biokimia Selat Madura berada dalam batas aman.</p>
+            <h3 style="margin:0; color:#10b981; font-weight:800;">🟢 KONDISI NORMAL: AMAN OPERASIONAL</h3>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Aman, tidak ada indikasi serangan ubur-ubur. Parameter hidrodinamika & biokimia Selat Madura berada dalam batas normal.</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -546,6 +555,8 @@ with col_map:
             )
         ),
     ).add_to(m)
+
+    # st_folium dipanggil tanpa variabel penampung tak terpakai agar tidak memicu output '0'
     st_folium(m, width="100%", height=170, key="grati_map_juara")
 
 st.markdown("---")
@@ -559,93 +570,75 @@ p1, p2, p3, p4 = st.columns(4)
 
 with p1:
     st.markdown(
-        """
+        f"""
     <div class="pillar-card">
         <div class="pillar-title">🧫 1. Biokimia Laut</div>
         <div class="metric-label">Suhu Laut (SST)</div>
-        <div class="metric-value">{} °C</div><br>
+        <div class="metric-value">{data['sst']} °C</div><br>
         <div class="metric-label">Klorofil-a</div>
-        <div class="metric-value">{} mg/m³</div><br>
+        <div class="metric-value">{data['chlorophyll_a']} mg/m³</div><br>
         <div class="metric-label">Salinitas</div>
-        <div class="metric-value">{} PSU</div><br>
+        <div class="metric-value">{data['salinity']} PSU</div><br>
         <div class="metric-label">Oksigen Terlarut (DO)</div>
-        <div class="metric-value">{} mg/L</div>
+        <div class="metric-value">{data['do_level']} mg/L</div>
     </div>
-    """.format(
-            data["sst"],
-            data["chlorophyll_a"],
-            data["salinity"],
-            data["do_level"],
-        ),
+    """,
         unsafe_allow_html=True,
     )
 
 with p2:
     st.markdown(
-        """
+        f"""
     <div class="pillar-card">
         <div class="pillar-title">🌊 2. Hidro-Oseanografi</div>
         <div class="metric-label">Kecepatan Arus</div>
-        <div class="metric-value">{} m/s</div><br>
+        <div class="metric-value">{data['current_speed']} m/s</div><br>
         <div class="metric-label">Arah Arus</div>
-        <div class="metric-value">{}° (Inlet)</div><br>
+        <div class="metric-value">{data['current_dir']}° (Inlet)</div><br>
         <div class="metric-label">Tinggi Gelombang</div>
-        <div class="metric-value">{} m</div><br>
+        <div class="metric-value">{data['wave_height']} m</div><br>
         <div class="metric-label">Kekeruhan (Turbidity)</div>
-        <div class="metric-value">{} NTU</div>
+        <div class="metric-value">{data['turbidity']} NTU</div>
     </div>
-    """.format(
-            data["current_speed"],
-            data["current_dir"],
-            data["wave_height"],
-            data["turbidity"],
-        ),
+    """,
         unsafe_allow_html=True,
     )
 
 with p3:
+    tide_text = "Spring Tide" if data["tide_phase"] == 1 else "Neap Tide"
     st.markdown(
-        """
+        f"""
     <div class="pillar-card">
         <div class="pillar-title">🌤️ 3. Cuaca & Pasang Surut</div>
         <div class="metric-label">Kecepatan Angin</div>
-        <div class="metric-value">{} Knot</div><br>
+        <div class="metric-value">{data['wind_speed']} Knot</div><br>
         <div class="metric-label">Arah Angin</div>
-        <div class="metric-value">{}°</div><br>
+        <div class="metric-value">{data['wind_dir']}°</div><br>
         <div class="metric-label">Siklus Pasang Laut</div>
-        <div class="metric-value">{}</div><br>
+        <div class="metric-value">{tide_text}</div><br>
         <div class="metric-label">Elevasi Muka Air</div>
-        <div class="metric-value">{} m</div>
+        <div class="metric-value">{data['sea_level']} m</div>
     </div>
-    """.format(
-            data["wind_speed"],
-            data["wind_dir"],
-            "Spring Tide" if data["tide_phase"] == 1 else "Neap Tide",
-            data["sea_level"],
-        ),
+    """,
         unsafe_allow_html=True,
     )
 
 with p4:
+    dp_color = "#ef4444" if data["delta_p"] >= 0.50 else "#ffffff"
     st.markdown(
-        """
+        f"""
     <div class="pillar-card">
         <div class="pillar-title">⚙️ 4. Sensor Internal SWI</div>
         <div class="metric-label">Beda Tekanan ΔP</div>
-        <div class="metric-value" style="color:{};">{} mWC</div><br>
+        <div class="metric-value" style="color:{dp_color};">{data['delta_p']} mWC</div><br>
         <div class="metric-label">Flow Velocity Intake</div>
-        <div class="metric-value">{} m/s</div><br>
+        <div class="metric-value">{data['flow_velocity']} m/s</div><br>
         <div class="metric-label">Torsi Motor TBS</div>
-        <div class="metric-value">{} %</div><br>
+        <div class="metric-value">{data['tbs_torque']} %</div><br>
         <div class="metric-label">Filter Status</div>
         <div class="metric-value" style="color:#10b981;">CLEAN</div>
     </div>
-    """.format(
-            "#ef4444" if data["delta_p"] >= 0.50 else "#ffffff",
-            data["delta_p"],
-            data["flow_velocity"],
-            data["tbs_torque"],
-        ),
+    """,
         unsafe_allow_html=True,
     )
 
@@ -658,7 +651,6 @@ c_graph1, c_graph2 = st.columns(2)
 
 with c_graph1:
     st.markdown("#### 📈 Tren Beda Tekanan Screen (ΔP) & Suhu Laut 24 Jam")
-    # Generasi data simulasi tren 24 jam
     times = [
         (datetime.datetime.now(WIB_TZ) - datetime.timedelta(hours=i)).strftime(
             "%H:00"
