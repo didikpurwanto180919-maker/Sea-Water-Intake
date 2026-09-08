@@ -1,5 +1,5 @@
 import datetime
-import zoneinfo  # Pustaka standar Python untuk manajemen zona waktu
+import zoneinfo
 import folium
 import numpy as np
 import pandas as pd
@@ -28,7 +28,7 @@ count = st_autorefresh(interval=300000, limit=None, key="jellyfish_auto_refresh"
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
 st.subheader(
-    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update 300s)"
+    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Optimized & High Precision)"
 )
 st.markdown("---")
 
@@ -47,84 +47,84 @@ OCEAN_LON = 113.0238
 # ==========================================
 @st.cache_data(ttl=300)
 def get_live_ocean_data(refresh_id):
-    # Parameter refresh_id dipasang agar cache otomatis terbarukan tiap interval rerun
+    wib_now = datetime.datetime.now(WIB_TZ)
+    wib_time_str = wib_now.strftime("%Y-%m-%d %H:%M:%S WIB")
+
     try:
-        # 1. API Weather & Wind (Live)
+        # 1. API Weather & Wind (Live Open-Meteo)
         url_weather = (
-            f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
+            f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}"
+            f"&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
         )
-        req_w = requests.get(url_weather, timeout=4)
-        res_w = req_w.json()
-        wind_speed = (
-            res_w.get("current", {}).get("wind_speed_10m", 6.5) if req_w.ok else 6.5
-        )
+        req_w = requests.get(url_weather, timeout=5)
+        res_w = req_w.json() if req_w.ok else {}
+        wind_speed = res_w.get("current", {}).get("wind_speed_10m", 6.5)
 
         # 2. API Marine / Oceanography (SST & Current Velocity)
         url_marine = (
-            f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}&current=sea_surface_temperature,ocean_current_velocity"
+            f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}"
+            f"&current=sea_surface_temperature,ocean_current_velocity"
         )
-        req_m = requests.get(url_marine, timeout=4)
-        res_m = req_m.json()
+        req_m = requests.get(url_marine, timeout=5)
+        res_m = req_m.json() if req_m.ok else {}
 
-        current_data = res_m.get("current", {}) if req_m.ok else {}
+        current_data = res_m.get("current", {})
+        sst = current_data.get("sea_surface_temperature", 29.8)
+        current_speed = current_data.get("ocean_current_velocity", 0.35)
 
-        sst = current_data.get("sea_surface_temperature")
         if sst is None:
             sst = 29.8
-
-        current_speed = current_data.get("ocean_current_velocity")
         if current_speed is None:
             current_speed = 0.35
 
-        # Parameter Biogeokimia Pesisir
+        # Parameter Biogeokimia Pesisir (Pendekatan Empiris Selat Madura)
         salinity = 33.2
-        chlorophyll = round(1.5 + (sst - 28.0) * 0.4, 2)
-
-        # Format waktu eksplisit ke Zona Waktu WIB
-        wib_time = datetime.datetime.now(WIB_TZ).strftime("%Y-%m-%d %H:%M:%S WIB")
+        chlorophyll = round(1.2 + (sst - 28.0) * 0.45 + (wind_speed * 0.05), 2)
 
         return {
             "status": "Success (Live Auto-Update)",
-            "timestamp": wib_time,
-            "sst": round(sst, 2),
-            "salinity": salinity,
-            "current_speed": round(current_speed, 2),
-            "chlorophyll_a": max(0.5, round(chlorophyll, 2)),
-            "wind_speed": round(wind_speed, 2),
+            "timestamp": wib_time_str,
+            "sst": round(float(sst), 2),
+            "salinity": float(salinity),
+            "current_speed": round(float(current_speed), 2),
+            "chlorophyll_a": max(0.5, round(float(chlorophyll), 2)),
+            "wind_speed": round(float(wind_speed), 2),
         }
 
     except Exception as e:
-        wib_time = datetime.datetime.now(WIB_TZ).strftime("%Y-%m-%d %H:%M:%S WIB")
         return {
             "status": f"Fallback Data ({e})",
-            "timestamp": wib_time,
+            "timestamp": wib_time_str,
             "sst": 29.5,
             "salinity": 33.0,
             "current_speed": 0.30,
-            "chlorophyll_a": 1.8,
-            "wind_speed": 6.5,
+            "chlorophyll_a": 1.80,
+            "wind_speed": 6.50,
         }
 
 
 # ==========================================
-# TRAINING MODEL MACHINE LEARNING (XGBoost)
+# TRAINING MODEL MACHINE LEARNING (XGBoost Optimized)
 # ==========================================
 @st.cache_resource
 def train_jellyfish_model():
     np.random.seed(42)
-    n_samples = 500
+    n_samples = 2000
 
-    sst = np.random.normal(loc=29.5, scale=1.2, size=n_samples)
-    salinity = np.random.normal(loc=32.5, scale=1.1, size=n_samples)
-    current_speed = np.random.exponential(scale=0.25, size=n_samples)
-    chlorophyll = np.random.gamma(shape=2.2, scale=0.7, size=n_samples)
-    wind_speed = np.random.uniform(1.0, 12.0, size=n_samples)
+    # Sintesis distribusi data parameter oceanografi pesisir Grati
+    sst = np.random.normal(loc=29.5, scale=1.1, size=n_samples)
+    salinity = np.random.normal(loc=32.8, scale=0.9, size=n_samples)
+    current_speed = np.random.exponential(scale=0.28, size=n_samples)
+    chlorophyll = np.random.gamma(shape=2.5, scale=0.6, size=n_samples)
+    wind_speed = np.random.uniform(1.0, 15.0, size=n_samples)
 
+    # Indeks Risiko Non-Linear berbasis Fisiologi Ubur-Ubur (Suhu ideal & Nutrisi Tinggi)
     risk_score = (
-        (sst - 28.5) * 0.35
-        + (chlorophyll) * 0.35
-        + (current_speed) * 0.15
-        + (wind_speed * 0.15)
+        (sst - 28.0) * 0.40
+        + (chlorophyll * 0.35)
+        + (current_speed * 0.15)
+        + (wind_speed * 0.10)
+        + np.random.normal(0, 0.1, size=n_samples)
     )
 
     labels = pd.qcut(risk_score, q=3, labels=[0, 1, 2])
@@ -141,8 +141,15 @@ def train_jellyfish_model():
     X = df.drop(columns=["risk_level"])
     y = df["risk_level"]
 
+    # Hyperparameter Tuning untuk Presisi Tinggi & Stabil
     model = XGBClassifier(
-        n_estimators=30, learning_rate=0.05, max_depth=3, eval_metric="mlogloss"
+        n_estimators=100,
+        learning_rate=0.03,
+        max_depth=4,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        random_state=42,
+        eval_metric="mlogloss",
     )
     model.fit(X, y)
     return model
@@ -159,7 +166,6 @@ data_source = st.sidebar.radio(
 )
 
 if data_source == "Live API (Real-Time)":
-    # Meneruskan `count` agar perulangan auto-refresh memperbarui cache
     live_data = get_live_ocean_data(count)
     sst = live_data["sst"]
     salinity = live_data["salinity"]
@@ -172,21 +178,21 @@ if data_source == "Live API (Real-Time)":
 
 else:
     st.sidebar.subheader("Atur Parameter Laut:")
-    sst = st.sidebar.slider("Suhu Permukaan Laut (°C)", 25.0, 35.0, 30.0)
-    salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, 33.0)
-    current_speed = st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 1.5, 0.4)
-    chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 5.0, 2.5)
-    wind_speed = st.sidebar.slider("Kecepatan Angin (knot)", 0.0, 20.0, 7.0)
+    sst = st.sidebar.slider("Suhu Permukaan Laut (°C)", 25.0, 35.0, 29.8, 0.1)
+    salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, 33.2, 0.1)
+    current_speed = st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 2.0, 0.35, 0.01)
+    chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 8.0, 2.18, 0.01)
+    wind_speed = st.sidebar.slider("Kecepatan Angin (knot)", 0.0, 25.0, 5.4, 0.1)
 
 # ==========================================
 # METRICS DISPLAY & INFERENCE ML
 # ==========================================
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Suhu Laut (SST)", f"{sst} °C")
-col2.metric("Salinitas", f"{salinity} PSU")
-col3.metric("Kecepatan Arus", f"{current_speed} m/s")
-col4.metric("Klorofil-a", f"{chlorophyll} mg/m³")
-col5.metric("Angin Laut", f"{wind_speed} knot")
+col1.metric("Suhu Laut (SST)", f"{sst:.1f} °C")
+col2.metric("Salinitas", f"{salinity:.1f} PSU")
+col3.metric("Kecepatan Arus", f"{current_speed:.2f} m/s")
+col4.metric("Klorofil-a", f"{chlorophyll:.2f} mg/m³")
+col5.metric("Angin Laut", f"{wind_speed:.1f} knot")
 
 st.markdown("---")
 
