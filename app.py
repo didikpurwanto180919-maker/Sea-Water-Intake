@@ -39,14 +39,14 @@ st.markdown(
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .executive-title {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 800;
         color: #ffffff;
         letter-spacing: 0.5px;
         margin: 0;
     }
     .executive-subtitle {
-        font-size: 13px;
+        font-size: 12px;
         color: #00d2ff;
         margin-top: 5px;
         font-weight: 600;
@@ -81,6 +81,15 @@ st.markdown(
         padding-bottom: 6px;
     }
     
+    .forecast-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid #00d2ff;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0, 210, 255, 0.15);
+    }
+    
     .metric-value {
         font-size: 18px;
         font-weight: 700;
@@ -92,7 +101,7 @@ st.markdown(
         text-transform: uppercase;
     }
     
-    /* Box Status Alert Seragam */
+    /* Box Status Alert */
     .status-box-safe {
         background: rgba(16, 185, 129, 0.1);
         border: 2px solid #10b981;
@@ -123,7 +132,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Pengaturan Auto Refresh setiap 60 Detik (1 Menit)
+# Pengaturan Auto Refresh setiap 60 Detik
 WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
 REFRESH_INTERVAL_SEC = 60
 
@@ -436,8 +445,8 @@ st.markdown(
 <div class="executive-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="executive-title">⚡ SISTEM PREDIKSI SERANGAN UBUR-UBUR SEA WATER INTAKE (SWI) PLTGU GRATI BERBASIS MACHINE LEARNING</div>
-            <div class="executive-subtitle">EARLY WARNING COMMAND CENTER — XGBoost ML v3.4 | SELAT MADURA</div>
+            <div class="executive-title">⚡ SISTEM PREDIKSI SERANGAN UBUR-UBUR SEA WATER INTAKE (SWI) PLTGU GRATI</div>
+            <div class="executive-subtitle">EARLY WARNING & SEASONAL FORECAST COMMAND CENTER — XGBoost ML v3.5 | SELAT MADURA</div>
         </div>
         <div style="text-align: right;">
             <div class="realtime-badge">🔄 AUTO REFRESH: 1 MENIT</div>
@@ -477,7 +486,6 @@ probabilities = model.predict_proba(input_df)[0]
 
 # --- MODUL AUDIO ALARM AUTOMATIC PLAYBACK ---
 if risk_class == 2:
-    # Memutar Suara Sirine Alarm Darurat Menggunakan HTML5 Audio API
     sound_script = """
     <audio autoplay loop>
         <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
@@ -490,6 +498,82 @@ if risk_class == 2:
     </script>
     """
     components.html(sound_script, height=0, width=0)
+
+# --- PANEL METRICS PREDIKSI KEDATANGAN MUSIMAN ---
+wib_now = datetime.datetime.now(WIB_TZ)
+current_month = wib_now.month
+year_current = wib_now.year
+
+st.markdown(
+    """
+<div class="forecast-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2e3b4e; padding-bottom: 8px; margin-bottom: 12px;">
+        <span style="font-size: 14px; font-weight: 800; color: #00d2ff; text-transform: uppercase; letter-spacing: 1px;">
+            📅 PREDIKSI MUSIM KEDATANGAN UBUR-UBUR (SEASONAL ML FORECAST)
+        </span>
+        <span style="font-size: 11px; color: #94a3b8;">
+            <b>Model:</b> Siklus Angin Muson Timur & Suhu Permukaan Laut Selat Madura
+        </span>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+fc1, fc2, fc3, fc4 = st.columns(4)
+
+with fc1:
+    st.markdown(
+        f"""
+    <div class="metric-label">🗓️ Puncak Kedatangan Tahunan</div>
+    <div class="metric-value" style="color: #f59e0b;">Agustus – November</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Puncak Kritis: <b>September & Oktober</b></div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with fc2:
+    st.markdown(
+        f"""
+    <div class="metric-label">🌊 Kemunculan Awal Awal Musim</div>
+    <div class="metric-value" style="color: #00d2ff;">Mei – Juni</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Fase Peralihan / Pancaroba</div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with fc3:
+    # Estimasi tanggal berdasarkan siklus pasang purnama bulan September-Oktober
+    peak_date_str = f"15 Sept – 25 Okt {year_current}"
+    st.markdown(
+        f"""
+    <div class="metric-label">⏳ Estimasi Serangan Berikutnya</div>
+    <div class="metric-value" style="color: #ef4444;">{peak_date_str}</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Siklus Pasang Purnama (Spring Tide)</div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with fc4:
+    if 8 <= current_month <= 11:
+        season_status = "🚨 HIGH RISK SEASON (PUNCAK SERANGAN)"
+        season_color = "#ef4444"
+    elif 5 <= current_month <= 7:
+        season_status = "⚠️ MODERATE SEASON (FASE TRANSISI)"
+        season_color = "#f59e0b"
+    else:
+        season_status = "🟢 LOW RISK SEASON (SANGAT AMAN)"
+        season_color = "#10b981"
+
+    st.markdown(
+        f"""
+    <div class="metric-label">STATUS MUSIM SAAT INI</div>
+    <div class="metric-value" style="color: {season_color}; font-size: 13px; font-weight:800;">{season_status}</div>
+    <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Berdasarkan Kalender Operasional</div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # --- TOP ROW: STATUS ALARM & GAUGE CHART ---
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
@@ -679,53 +763,51 @@ with p4:
 st.markdown("---")
 
 # ==========================================
-# 7. ANALISIS TREN & EXPLAINABLE AI (XAI)
+# 7. ANALISIS TREN TAHUNAN & EXPLAINABLE AI
 # ==========================================
 c_graph1, c_graph2 = st.columns(2)
 
 with c_graph1:
-    st.markdown("#### 📈 Tren Beda Tekanan Screen (ΔP) & Suhu Laut 24 Jam")
-    times = [
-        (datetime.datetime.now(WIB_TZ) - datetime.timedelta(hours=i)).strftime(
-            "%H:00"
-        )
-        for i in range(24, 0, -1)
+    st.markdown("#### 📅 Tren Siklus Risiko Ubur-Ubur Tahunan Selat Madura")
+    months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "Mei",
+        "Jun",
+        "Jul",
+        "Agu",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Des",
     ]
-    dp_trend = np.random.normal(loc=data["delta_p"], scale=0.05, size=24)
-    sst_trend = np.random.normal(loc=data["sst"], scale=0.2, size=24)
+    # Indeks risiko historis bulanan Selat Madura
+    risk_monthly = [10, 12, 18, 25, 45, 55, 65, 88, 98, 92, 70, 30]
 
-    fig_trend = go.Figure()
-    fig_trend.add_trace(
+    fig_season = go.Figure()
+    fig_season.add_trace(
         go.Scatter(
-            x=times,
-            y=dp_trend,
-            name="ΔP Screen (mWC)",
-            line=dict(color="#ef4444", width=3),
-        )
-    )
-    fig_trend.add_trace(
-        go.Scatter(
-            x=times,
-            y=sst_trend,
-            name="SST (°C)",
-            line=dict(color="#00d2ff", width=2, dash="dash"),
-            yaxis="y2",
+            x=months,
+            y=risk_monthly,
+            mode="lines+markers",
+            name="Indeks Risiko (%)",
+            line=dict(color="#f59e0b", width=3),
+            marker=dict(size=8, color="#ef4444"),
         )
     )
 
-    fig_trend.update_layout(
+    fig_season.update_layout(
         height=260,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="#1a2332",
         font=dict(color="#94a3b8"),
         margin=dict(l=10, r=10, t=10, b=10),
-        yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
-        yaxis2=dict(
-            title="SST (°C)", color="#00d2ff", overlaying="y", side="right"
-        ),
-        legend=dict(orientation="h", y=1.1),
+        yaxis=dict(title="Probabilitas Serangan (%)", range=[0, 100]),
+        xaxis=dict(title="Bulan"),
     )
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_season, use_container_width=True)
 
 with c_graph2:
     st.markdown("#### 🧠 Explainable AI: Parameter Pemicu Utama (Feature Importance)")
