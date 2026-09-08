@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="Prediksi Serangan Ubur-Ubur SWI PLTGU Grati - ML",
+    page_title="Early Warning Serangan Ubur-Ubur SWI PLTGU Grati - ML",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
