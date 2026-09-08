@@ -14,15 +14,11 @@ from xgboost import XGBClassifier
 # ==========================================
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
-# Cari sintaks yang mirip seperti ini di skrip Anda:
-st.markdown(
-    """
-    <div style="...">
-        <h3>⚡ EWS JELLYFISH SCADA – PLTGU GRATI</h3>
-        <p>EARLY WARNING COMMAND CENTER — XGBoost ML v3.4 | SELAT MADURA</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
+st.set_page_config(
+    page_title="Prediksi Serangan Ubur-Ubur SWI PLTGU Grati - ML",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 st.markdown(
