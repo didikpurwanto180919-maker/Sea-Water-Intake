@@ -1,4 +1,5 @@
 import datetime
+import zoneinfo  # Pustaka standar Python untuk manajemen zona waktu
 import folium
 import numpy as np
 import pandas as pd
@@ -17,11 +18,13 @@ st.set_page_config(
     layout="wide",
 )
 
+# Set Zona Waktu WIB (Asia/Jakarta)
+WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
+
 # ==========================================
-# AUTO REFRESH TIAP 300 DETIK (300.000 ms)
+# AUTO REFRESH TIAP 300 DETIK (5 MENIT)
 # ==========================================
-# Mengubah interval refresh menjadi 5 menit untuk menghemat penggunaan CPU
-st_autorefresh(interval=300000, limit=None, key="jellyfish_auto_refresh")
+count = st_autorefresh(interval=300000, limit=None, key="jellyfish_auto_refresh")
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
 st.subheader(
@@ -40,10 +43,11 @@ OCEAN_LON = 113.0238
 
 
 # ==========================================
-# FUNGSI FETCH LIVE DATA (DENGAN CACHE 300 DETIK)
+# FUNGSI FETCH LIVE DATA (CACHE 300 DETIK)
 # ==========================================
 @st.cache_data(ttl=300)
-def get_live_ocean_data():
+def get_live_ocean_data(refresh_id):
+    # Parameter refresh_id dipasang agar cache otomatis terbarukan tiap interval rerun
     try:
         # 1. API Weather & Wind (Live)
         url_weather = (
@@ -76,9 +80,12 @@ def get_live_ocean_data():
         salinity = 33.2
         chlorophyll = round(1.5 + (sst - 28.0) * 0.4, 2)
 
+        # Format waktu eksplisit ke Zona Waktu WIB
+        wib_time = datetime.datetime.now(WIB_TZ).strftime("%Y-%m-%d %H:%M:%S WIB")
+
         return {
             "status": "Success (Live Auto-Update)",
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
+            "timestamp": wib_time,
             "sst": round(sst, 2),
             "salinity": salinity,
             "current_speed": round(current_speed, 2),
@@ -87,9 +94,10 @@ def get_live_ocean_data():
         }
 
     except Exception as e:
+        wib_time = datetime.datetime.now(WIB_TZ).strftime("%Y-%m-%d %H:%M:%S WIB")
         return {
             "status": f"Fallback Data ({e})",
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
+            "timestamp": wib_time,
             "sst": 29.5,
             "salinity": 33.0,
             "current_speed": 0.30,
@@ -151,7 +159,8 @@ data_source = st.sidebar.radio(
 )
 
 if data_source == "Live API (Real-Time)":
-    live_data = get_live_ocean_data()
+    # Meneruskan `count` agar perulangan auto-refresh memperbarui cache
+    live_data = get_live_ocean_data(count)
     sst = live_data["sst"]
     salinity = live_data["salinity"]
     current_speed = live_data["current_speed"]
@@ -230,7 +239,6 @@ with col_right:
     st.subheader("📍 Koordinat Intake PLTGU Grati")
     st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
 
-    # Peta Citra Satelit Google via Folium
     m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=16)
 
     google_satellite = folium.TileLayer(
@@ -249,4 +257,4 @@ with col_right:
         icon=folium.Icon(color="red", icon="info-sign"),
     ).add_to(m)
 
-    st_folium(m, width=420, height=320, key="grati_map")
+    st_folium(m, width=420, height=320, key=f"grati_map_{count}")
