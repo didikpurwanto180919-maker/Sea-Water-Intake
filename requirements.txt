@@ -1,6 +1,6 @@
 streamlit
+copernicusmarine
 pandas
 numpy
-requests
-joblib
+xgboost
 scikit-learn
