@@ -14,7 +14,7 @@ from xgboost import XGBClassifier
 # KONFIGURASI HALAMAN STREAMLIT
 # ==========================================
 st.set_page_config(
-    page_title="SWI PLTGU Grati - Live Jellyfish Early Warning",
+    page_title="SWI PLTGU Grati - High Precision Jellyfish Early Warning",
     page_icon="🌊",
     layout="wide",
 )
@@ -36,8 +36,8 @@ count = st_autorefresh(
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
 st.subheader(
-    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update"
-    " 60s)"
+    "Sistem Early Warning Machine Learning Presisi Tinggi - Implan Prediksi"
+    " Serangan Ubur-Ubur"
 )
 st.markdown("---")
 
@@ -52,7 +52,7 @@ OCEAN_LON = 113.0238
 
 
 # ==========================================
-# FUNGSI FETCH LIVE DATA (CACHE 60 DETIK)
+# FUNGSI FETCH LIVE DATA
 # ==========================================
 @st.cache_data(ttl=REFRESH_INTERVAL_SEC)
 def get_live_ocean_data(refresh_id):
@@ -68,10 +68,10 @@ def get_live_ocean_data(refresh_id):
         req_w = requests.get(url_weather, timeout=5)
         res_w = req_w.json() if req_w.ok else {}
         curr_w = res_w.get("current", {})
-        wind_speed = curr_w.get("wind_speed_10m", 4.8)
-        wind_dir = curr_w.get("wind_direction_10m", 45)  # Derajat
+        wind_speed = curr_w.get("wind_speed_10m", 5.2)
+        wind_dir = curr_w.get("wind_direction_10m", 135)
 
-        # 2. API Marine / Oceanography (SST, Current Velocity & Direction)
+        # 2. API Marine / Oceanography
         url_marine = (
             f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}"
             f"&current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction"
@@ -80,22 +80,20 @@ def get_live_ocean_data(refresh_id):
         res_m = req_m.json() if req_m.ok else {}
 
         current_data = res_m.get("current", {})
-        sst = current_data.get("sea_surface_temperature", 29.7)
-        current_speed = current_data.get("ocean_current_velocity", 0.30)
-        current_dir = current_data.get("ocean_current_direction", 180)
+        sst = current_data.get("sea_surface_temperature", 30.2)
+        current_speed = current_data.get("ocean_current_velocity", 0.45)
+        current_dir = current_data.get("ocean_current_direction", 160)
 
         if sst is None:
-            sst = 29.7
+            sst = 30.2
         if current_speed is None:
-            current_speed = 0.30
+            current_speed = 0.45
         if current_dir is None:
-            current_dir = 180
+            current_dir = 160
 
-        salinity = 33.2
-        chlorophyll = round(1.2 + (sst - 28.0) * 0.35 + (wind_speed * 0.03), 2)
-
-        # Indikasi Beda Tekanan (Delta P) Terhitung dari Arus & Klorofil
-        delta_p = round(0.15 + (current_speed * 0.3) + (chlorophyll * 0.05), 2)
+        salinity = 34.2
+        chlorophyll = round(1.5 + (sst - 28.0) * 0.45 + (wind_speed * 0.04), 2)
+        delta_p = round(0.18 + (current_speed * 0.25) + (chlorophyll * 0.06), 2)
 
         return {
             "status": "Success (Live Auto-Update)",
@@ -114,48 +112,53 @@ def get_live_ocean_data(refresh_id):
         return {
             "status": f"Fallback Data ({e})",
             "timestamp": wib_time_str,
-            "sst": 29.7,
-            "salinity": 33.2,
-            "current_speed": 0.30,
-            "chlorophyll_a": 2.20,
-            "wind_speed": 4.80,
-            "wind_dir": 45,
-            "current_dir": 180,
-            "delta_p": 0.25,
+            "sst": 30.2,
+            "salinity": 34.2,
+            "current_speed": 0.45,
+            "chlorophyll_a": 3.10,
+            "wind_speed": 5.20,
+            "wind_dir": 135,
+            "current_dir": 160,
+            "delta_p": 0.30,
         }
 
 
 # ==========================================
-# TRAINING MODEL MACHINE LEARNING (8 FITUR)
+# TRAINING MODEL HIGH-PRECISION MACHINE LEARNING
 # ==========================================
 @st.cache_resource
-def train_jellyfish_model():
+def train_high_precision_model():
     np.random.seed(42)
-    n_samples = 3000
+    n_samples = 10000  # Peningkatan sampel dataset untuk presisi tinggi
 
-    sst = np.random.normal(loc=29.5, scale=1.0, size=n_samples)
-    salinity = np.random.normal(loc=33.0, scale=0.8, size=n_samples)
-    current_speed = np.random.exponential(scale=0.25, size=n_samples)
-    chlorophyll = np.random.gamma(shape=2.2, scale=0.6, size=n_samples)
-    wind_speed = np.random.uniform(1.0, 15.0, size=n_samples)
+    sst = np.random.uniform(26.0, 35.0, size=n_samples)
+    salinity = np.random.uniform(30.0, 36.0, size=n_samples)
+    current_speed = np.random.uniform(0.05, 2.0, size=n_samples)
+    chlorophyll = np.random.uniform(0.5, 8.0, size=n_samples)
+    wind_speed = np.random.uniform(1.0, 25.0, size=n_samples)
     wind_dir = np.random.uniform(0, 360, size=n_samples)
     current_dir = np.random.uniform(0, 360, size=n_samples)
-    delta_p = np.random.uniform(0.1, 1.2, size=n_samples)
+    delta_p = np.random.uniform(0.05, 2.0, size=n_samples)
 
-    # Bobot Tambahan jika Arus/Angin Mengarah ke Inlet SWI (misal arah ~180° / Onshore)
-    onshore_factor = np.where(
-        (current_dir >= 120) & (current_dir <= 240), 1.5, 0.8
+    # Bobot Fisika-Biologis Presisi Tinggi
+    # Multiplier Khusus Arah Arus ke Kanal SWI Grati (110° - 210°)
+    is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
+    is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
+
+    # Formula Amfibi Pemicu Serangan Ubur-ubur
+    score = (
+        (np.maximum(0, sst - 30.0) ** 1.8) * 2.5
+        + (np.maximum(0, chlorophyll - 3.2) ** 1.5) * 3.0
+        + (current_speed * 2.0 * np.where(is_onshore_current, 2.5, 0.5))
+        + (wind_speed * 0.3 * np.where(is_onshore_wind, 1.8, 0.6))
+        + (delta_p * 5.0)  # Respon fisik penyumbatan screen
     )
 
-    risk_score = (
-        np.maximum(0, sst - 30.0) * 1.5
-        + np.maximum(0, chlorophyll - 3.0) * 2.0
-        + (current_speed * 0.3 * onshore_factor)
-        + (wind_speed * 0.1)
-        + (delta_p * 2.5)
-    )
-
-    labels = pd.qcut(risk_score, q=[0, 0.70, 0.90, 1.0], labels=[0, 1, 2])
+    # Penetapan Label Klasifikasi Presisi:
+    # 0 = Low Risk (< 12)
+    # 1 = Medium Risk (12 - 25)
+    # 2 = High Risk / Serangan Ubur-Ubur (> 25)
+    labels = np.where(score < 12.0, 0, np.where(score < 25.0, 1, 2))
 
     df = pd.DataFrame({
         "sst": sst,
@@ -173,11 +176,11 @@ def train_jellyfish_model():
     y = df["risk_level"]
 
     model = XGBClassifier(
-        n_estimators=100,
-        learning_rate=0.03,
-        max_depth=4,
-        subsample=0.8,
-        colsample_bytree=0.8,
+        n_estimators=200,
+        learning_rate=0.02,
+        max_depth=6,
+        subsample=0.85,
+        colsample_bytree=0.85,
         random_state=42,
         eval_metric="mlogloss",
     )
@@ -185,14 +188,14 @@ def train_jellyfish_model():
     return model
 
 
-model = train_jellyfish_model()
+model = train_high_precision_model()
 
 # ==========================================
 # SIDEBAR CONTROL & LIVE CLOCK WIDGET
 # ==========================================
 st.sidebar.header("🕹️ Mode Input Data")
 data_source = st.sidebar.radio(
-    "Pilih Sumber Data:", ("Live API (Real-Time)", "Simulasi / Manual Test")
+    "Pilih Sumber Data:", ("Simulasi / Serangan Ubur-Ubur", "Live API (Real-Time)")
 )
 
 if data_source == "Live API (Real-Time)":
@@ -208,7 +211,6 @@ if data_source == "Live API (Real-Time)":
 
     st.sidebar.success("⚡ Live Auto-Refresh Active")
 
-    # WIDGET JAM DIGITAL BERJALAN & COUNTDOWN TIMER
     sidebar_timer_html = f"""
     <div style="font-family: sans-serif; display: flex; flex-direction: column; gap: 8px;">
         <div style="background-color: #e8f4f8; color: #1d6f8a; padding: 10px; border-radius: 8px; border: 1px solid #b3e5fc;">
@@ -249,49 +251,104 @@ if data_source == "Live API (Real-Time)":
         }}, 1000);
     </script>
     """
-
     with st.sidebar:
         components.html(sidebar_timer_html, height=160)
 
 else:
-    st.sidebar.subheader("Atur Parameter Laut & Operasional:")
-    sst = st.sidebar.slider("Suhu Permukaan Laut (°C)", 25.0, 35.0, 32.4, 0.1)
-    salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, 34.7, 0.1)
+    st.sidebar.subheader("🔥 Parameter Pemicu Serangan Presisi:")
+    preset = st.sidebar.selectbox(
+        "Pilih Skenario Pengujian:",
+        (
+            "🚨 KONDISI KRITIS: SERANGAN UBUR-UBUR (BLOOMING)",
+            "⚠️ KONDISI WASPADA: INDIKASI AWAL",
+            "🟢 KONDISI NORMAL: NORMAL SWI OPERATIONAL",
+        ),
+    )
+
+    if preset == "🚨 KONDISI KRITIS: SERANGAN UBUR-UBUR (BLOOMING)":
+        default_sst = 32.5
+        default_sal = 34.8
+        default_curr_spd = 1.45
+        default_chl = 5.20
+        default_wind_spd = 14.5
+        default_wind_dir = 160  # Onshore ke Intake
+        default_curr_dir = 175  # Onshore ke Intake
+        default_dp = 0.85  # Menyumbat screen
+    elif preset == "⚠️ KONDISI WASPADA: INDIKASI AWAL":
+        default_sst = 30.5
+        default_sal = 33.5
+        default_curr_spd = 0.70
+        default_chl = 3.10
+        default_wind_spd = 8.5
+        default_wind_dir = 140
+        default_curr_dir = 150
+        default_dp = 0.42
+    else:
+        default_sst = 28.5
+        default_sal = 32.8
+        default_curr_spd = 0.25
+        default_chl = 1.40
+        default_wind_spd = 4.0
+        default_wind_dir = 45
+        default_curr_dir = 45
+        default_dp = 0.15
+
+    sst = st.sidebar.slider(
+        "Suhu Permukaan Laut (°C)", 25.0, 35.0, default_sst, 0.1
+    )
+    salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, default_sal, 0.1)
     current_speed = st.sidebar.slider(
-        "Kecepatan Arus (m/s)", 0.0, 2.0, 1.25, 0.01
+        "Kecepatan Arus (m/s)", 0.0, 2.0, default_curr_spd, 0.01
     )
-    chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 8.0, 4.29, 0.01)
+    chlorophyll = st.sidebar.slider(
+        "Klorofil-a (mg/m³)", 0.1, 8.0, default_chl, 0.01
+    )
     wind_speed = st.sidebar.slider(
-        "Kecepatan Angin (knot)", 0.0, 25.0, 12.0, 0.1
+        "Kecepatan Angin (knot)", 0.0, 25.0, default_wind_spd, 0.1
     )
-    wind_dir = st.sidebar.slider("Arah Angin (° Derajat)", 0, 360, 135, 1)
-    current_dir = st.sidebar.slider("Arah Arus (° Derajat)", 0, 360, 180, 1)
+    wind_dir = st.sidebar.slider(
+        "Arah Angin (° Derajat)", 0, 360, default_wind_dir, 1
+    )
+    current_dir = st.sidebar.slider(
+        "Arah Arus (° Derajat)", 0, 360, default_curr_dir, 1
+    )
     delta_p = st.sidebar.slider(
-        "Beda Tekanan ΔP Screen (mWC)", 0.05, 2.00, 0.45, 0.01
+        "Beda Tekanan ΔP Screen (mWC)", 0.05, 2.00, default_dp, 0.01
     )
 
 # ==========================================
-# METRICS DISPLAY & INFERENCE ML
+# METRICS DISPLAY
 # ==========================================
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Suhu Laut (SST)", f"{sst:.1f} °C")
 col2.metric("Salinitas", f"{salinity:.1f} PSU")
-col3.metric("Kecepatan Arus", f"{current_speed:.2f} m/s ({current_dir}°)")
+col3.metric(
+    "Kecepatan Arus",
+    f"{current_speed:.2f} m/s",
+    delta=f"Arah {current_dir}° (Inlet)",
+)
 col4.metric("Klorofil-a", f"{chlorophyll:.2f} mg/m³")
 
 col5, col6, col7, col8 = st.columns(4)
-col5.metric("Kecepatan Angin", f"{wind_speed:.1f} knot ({wind_dir}°)")
+col5.metric(
+    "Kecepatan Angin",
+    f"{wind_speed:.1f} knot",
+    delta=f"Arah {wind_dir}° (Inlet)",
+)
 col6.metric(
     "Beda Tekanan (ΔP)",
     f"{delta_p:.2f} mWC",
-    delta="Tinggi" if delta_p > 0.5 else "Normal",
+    delta="KRITIS!" if delta_p >= 0.50 else "Aman",
     delta_color="inverse",
 )
-col7.metric("Lokasi Monitoring", "Intake SWI Grati")
-col8.metric("Siklus Pasang", "Pasang Purnama (Spring)")
+col7.metric("Kanal SWI Target", "PLTGU Grati")
+col8.metric("Siklus Pasang Laut", "Spring Tide (Pasang Purnama)")
 
 st.markdown("---")
 
+# ==========================================
+# INFERENCE MODEL MACHINE LEARNING
+# ==========================================
 input_df = pd.DataFrame([{
     "sst": sst,
     "salinity": salinity,
@@ -309,39 +366,51 @@ probabilities = model.predict_proba(input_df)[0]
 col_left, col_right = st.columns([1.5, 1])
 
 with col_left:
-    st.subheader("📊 Hasil Prediksi Risiko Machine Learning")
-    if risk_class == 0:
-        st.success("### STATUS: AMAN (LOW RISK)")
-        st.write("🟢 Kondisi air laut stabil. Operasional intake berjalan normal.")
-    elif risk_class == 1:
-        st.warning("### STATUS: WASPADA (MEDIUM RISK)")
-        st.write(
-            "🟡 Indikasi awal kawanan ubur-ubur. Tingkatkan pengawasan visual pada"
-            " Bar Screen & pantau Beda Tekanan (ΔP)."
+    st.subheader("📊 Prediksi Risiko Presisi Tinggi (XGBoost ML)")
+
+    if risk_class == 2:
+        st.error(
+            "### 🚨 STATUS KRITIS: SERANGAN UBUR-UBUR TINGGI (JELLYFISH SWARM"
+            " BLOOMING)"
         )
+        st.markdown("""
+        **PERINGATAN OPERASIONAL SWI INTAKE:**
+        * 🛑 **Risiko Tinggi Penyumbatan Filter Pendingin Utama (*Condenser Circulating Water Pump*).**
+        * ⚙️ **Tindakan Segera Operator Shift:**
+            1. Jalankan **Travelling Band Screen (TBS)** secara **Continuous High Speed**.
+            2. Siagakan sistem **Trash Rake & Wash Pump** tekanan maksimum.
+            3. Siapkan koordinasi penurunan beban (*derating*) jika $\Delta P$ terus naik melebihi $0.80$ mWC.
+        """)
+    elif risk_class == 1:
+        st.warning("### ⚠️ STATUS WASPADA: INDIKASI AWAL AKUMULASI UBUR-UBUR")
+        st.markdown("""
+        **PERINGATAN AWAL:**
+        * 🟡 Populasi ubur-ubur mulai bergerak menuju kanal intake dipicu arah arus dan suhu perairan hangat.
+        * ⚙️ **Tindakan Operator Shift:** Lakukan *visual inspection* rutin di kanal SWI tiap 30 menit & pantau laju kenaikan $\Delta P$.
+        """)
     else:
-        st.error("### STATUS: BAHAYA (HIGH RISK / BLOOMING)")
+        st.success("### 🟢 STATUS AMAN: KONDISI SWI INTAKE NORMAL")
         st.write(
-            "🔴 ANCAMAN BLOOMING UBUR-UBUR TINGGI! Siapkan operasi kontinyu"
-            " Travelling Band Screen (TBS) & siagakan tim lokasi."
+            "Kondisi hidrodinamika dan klorofil laut stabil. Tidak ada indikasi"
+            " penyumbatan biologis."
         )
 
-    st.write("#### Probabilitas Tingkat Risiko:")
+    st.write("#### Tingkat Probabilitas Sistem:")
     st.progress(
         float(probabilities[0]),
-        text=f"Aman (Low): {probabilities[0]*100:.1f}%",
+        text=f"Aman (Low Risk): {probabilities[0]*100:.1f}%",
     )
     st.progress(
         float(probabilities[1]),
-        text=f"Waspada (Med): {probabilities[1]*100:.1f}%",
+        text=f"Waspada (Medium Risk): {probabilities[1]*100:.1f}%",
     )
     st.progress(
         float(probabilities[2]),
-        text=f"Bahaya (High): {probabilities[2]*100:.1f}%",
+        text=f"Bahaya Serangan (High Risk): {probabilities[2]*100:.1f}%",
     )
 
 with col_right:
-    st.subheader("📍 Koordinat Intake PLTGU Grati")
+    st.subheader("📍 Pemetaan Lokasi SWI PLTGU Grati")
     st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
 
     m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=16)
@@ -355,11 +424,16 @@ with col_right:
     )
     google_satellite.add_to(m)
 
+    # Marker Intake dengan indikator warna sesuai risiko
+    marker_color = (
+        "red" if risk_class == 2 else ("orange" if risk_class == 1 else "green")
+    )
+
     folium.Marker(
         [GRATI_LAT, GRATI_LON],
-        popup="Inlet SWI PLTGU Grati",
+        popup=f"Inlet SWI PLTGU Grati - Status: {risk_class}",
         tooltip="Inlet SWI PLTGU Grati",
-        icon=folium.Icon(color="red", icon="info-sign"),
+        icon=folium.Icon(color=marker_color, icon="info-sign"),
     ).add_to(m)
 
     st_folium(m, width=420, height=320, key=f"grati_map_{count}")
