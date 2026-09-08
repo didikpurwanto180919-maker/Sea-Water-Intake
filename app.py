@@ -5,7 +5,9 @@ import requests
 import streamlit as st
 from xgboost import XGBClassifier
 
-# Konfigurasi Halaman Streamlit
+# ==========================================
+# KONFIGURASI HALAMAN STREAMLIT
+# ==========================================
 st.set_page_config(
     page_title="SWI PLTGU Grati - Live Jellyfish Early Warning",
     page_icon="🌊",
@@ -18,9 +20,12 @@ st.subheader(
 )
 st.markdown("---")
 
-# Koordinat Presisi Intake PLTGU Grati (Pasuruan)
-GRATI_LAT = -7.5950
-GRATI_LON = 112.8943
+# ==========================================
+# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (PASUARAN)
+# Location: Inlet Canal PLTGU Grati, Wates, Lekok
+# ==========================================
+GRATI_LAT = -7.6331
+GRATI_LON = 113.0189
 
 
 # ==========================================
@@ -62,6 +67,7 @@ def get_live_ocean_data():
         "wind_speed": round(wind_speed, 2),
     }
   except Exception as e:
+    # Fallback jika terjadi limit/koneksi terputus
     return {
         "status": f"Fallback Data ({e})",
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
@@ -79,7 +85,7 @@ def get_live_ocean_data():
 @st.cache_resource
 def train_jellyfish_model():
   np.random.seed(42)
-  n_samples = 500  # Ditingkatkan efisiensinya agar training berjalan instan
+  n_samples = 500  # Sampel dioptimasi agar proses training instan
 
   sst = np.random.normal(loc=29.5, scale=1.2, size=n_samples)
   salinity = np.random.normal(loc=32.5, scale=1.1, size=n_samples)
@@ -108,7 +114,6 @@ def train_jellyfish_model():
   X = df.drop(columns=["risk_level"])
   y = df["risk_level"]
 
-  # Estimators dikurangi untuk pemrosesan real-time di Streamlit Community Cloud
   model = XGBClassifier(
       n_estimators=30, learning_rate=0.05, max_depth=3, eval_metric="mlogloss"
   )
@@ -206,6 +211,6 @@ with col_left:
   )
 
 with col_right:
-  st.subheader("📍 Koordinat Monitoring")
+  st.subheader("📍 Koordinat Monitoring Intake")
   map_data = pd.DataFrame({"lat": [GRATI_LAT], "lon": [GRATI_LON]})
-  st.map(map_data, zoom=11)
+  st.map(map_data, zoom=13)
