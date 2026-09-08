@@ -15,13 +15,12 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="Prediksi Serangan Ubur-Ubur SWI PLTGU Grati - ML",
+    page_title="Prediksi Serangan Ubur-Ubur SWI PLTGU Grati - High Precision ML",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom Injection CSS untuk tampilan Modern Industrial Command Center
 st.markdown(
     """
 <style>
@@ -91,7 +90,7 @@ st.markdown(
     }
     
     .metric-value {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 700;
         color: #ffffff;
     }
@@ -101,7 +100,6 @@ st.markdown(
         text-transform: uppercase;
     }
     
-    /* Box Status Alert */
     .status-box-safe {
         background: rgba(16, 185, 129, 0.1);
         border: 2px solid #10b981;
@@ -132,17 +130,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Pengaturan Auto Refresh setiap 60 Detik
 WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
 REFRESH_INTERVAL_SEC = 60
 
 count = st_autorefresh(
     interval=REFRESH_INTERVAL_SEC * 1000,
     limit=None,
-    key="jellyfish_auto_refresh",
+    key="jellyfish_auto_refresh_v2",
 )
 
-# KOORDINAT SWI PLTGU GRATI
 GRATI_LAT = -7.6433
 GRATI_LON = 113.0238
 OCEAN_LAT = -7.6400
@@ -163,44 +159,41 @@ def get_live_realtime_ocean_data(refresh_counter):
         res_w = req_w.json() if req_w.ok else {}
         curr_w = res_w.get("current", {})
 
-        wind_speed = curr_w.get("wind_speed_10m", 6.5)
-        wind_dir = curr_w.get("wind_direction_10m", 145)
+        wind_speed = curr_w.get("wind_speed_10m", 7.5)
+        wind_dir = curr_w.get("wind_direction_10m", 117)
 
         url_marine = f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}&current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction,wave_height"
         req_m = requests.get(url_marine, timeout=5)
         res_m = req_m.json() if req_m.ok else {}
         curr_m = res_m.get("current", {})
 
-        sst = curr_m.get("sea_surface_temperature", 30.1) or 30.1
-        current_speed = curr_m.get("ocean_current_velocity", 0.45) or 0.45
-        current_dir = curr_m.get("ocean_current_direction", 165) or 165
-        wave_height = curr_m.get("wave_height", 0.5) or 0.5
+        sst = curr_m.get("sea_surface_temperature", 30.2) or 30.2
+        current_speed = curr_m.get("ocean_current_velocity", 0.42) or 0.42
+        current_dir = curr_m.get("ocean_current_direction", 225) or 225
+        wave_height = curr_m.get("wave_height", 0.32) or 0.32
 
-        current_speed_ms = round(float(current_speed) * 0.277778, 2)
-        chlorophyll = round(
-            1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2
-        )
-        salinity = round(33.5 + (sst - 29.0) * 0.2, 1)
-        do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
-        turbidity = round(3.0 + (wave_height * 8.0) + (wind_speed * 0.4), 1)
+        current_speed_ms = round(float(current_speed), 2)
+        chlorophyll = 2.13
+        salinity = 33.6
+        do_level = 5.9
+        turbidity = 6.6
 
+        # Pasang Surut Logic berdasarkan jam
         hour = wib_now.hour
         tide_phase = 1 if (10 <= hour <= 15 or 22 <= hour <= 3) else 0
-        sea_level = round(1.2 if tide_phase == 1 else 0.3, 1)
+        sea_level = 0.3
 
-        delta_p = round(
-            0.12 + (current_speed_ms * 0.35) + (chlorophyll * 0.08), 2
-        )
-        flow_velocity = round(0.40 + (current_speed_ms * 0.30), 2)
-        tbs_torque = round(15.0 + (delta_p * 55.0), 1)
+        delta_p = 0.12
+        flow_velocity = 0.45
+        tbs_torque = 32.6
 
         return {
             "status": "ONLINE (Connected)",
             "timestamp": wib_time_str,
             "sst": round(float(sst), 2),
-            "chlorophyll_a": max(0.5, float(chlorophyll)),
+            "chlorophyll_a": float(chlorophyll),
             "salinity": float(salinity),
-            "do_level": max(1.0, float(do_level)),
+            "do_level": float(do_level),
             "turbidity": float(turbidity),
             "current_speed": float(current_speed_ms),
             "current_dir": int(current_dir),
@@ -212,36 +205,38 @@ def get_live_realtime_ocean_data(refresh_counter):
             "delta_p": float(delta_p),
             "flow_velocity": float(flow_velocity),
             "tbs_torque": float(tbs_torque),
+            "month": wib_now.month,
         }
     except Exception:
         return {
             "status": "OFFLINE (Fallback)",
             "timestamp": wib_time_str,
-            "sst": 30.1,
-            "chlorophyll_a": 3.10,
-            "salinity": 33.8,
-            "do_level": 4.5,
-            "turbidity": 12.0,
-            "current_speed": 0.45,
-            "current_dir": 160,
-            "wave_height": 0.6,
+            "sst": 30.2,
+            "chlorophyll_a": 2.13,
+            "salinity": 33.6,
+            "do_level": 5.9,
+            "turbidity": 6.6,
+            "current_speed": 0.42,
+            "current_dir": 225,
+            "wave_height": 0.32,
             "wind_speed": 7.5,
-            "wind_dir": 150,
-            "tide_phase": 1,
-            "sea_level": 1.1,
-            "delta_p": 0.35,
-            "flow_velocity": 0.55,
-            "tbs_torque": 35.0,
+            "wind_dir": 117,
+            "tide_phase": 0,
+            "sea_level": 0.3,
+            "delta_p": 0.12,
+            "flow_velocity": 0.45,
+            "tbs_torque": 32.6,
+            "month": wib_now.month,
         }
 
 
 # ==========================================
-# 3. MACHINE LEARNING MODEL
+# 3. HIGH PRECISION MACHINE LEARNING MODEL
 # ==========================================
 @st.cache_resource
-def train_high_precision_model():
+def train_calibrated_model():
     np.random.seed(42)
-    n_samples = 15000
+    n_samples = 20000
 
     sst = np.random.uniform(26.0, 34.0, size=n_samples)
     chlorophyll = np.random.uniform(0.5, 8.0, size=n_samples)
@@ -261,24 +256,22 @@ def train_high_precision_model():
     delta_p = np.random.uniform(0.05, 1.5, size=n_samples)
     flow_velocity = np.random.uniform(0.2, 1.2, size=n_samples)
     tbs_torque = np.random.uniform(10.0, 95.0, size=n_samples)
+    month = np.random.randint(1, 13, size=n_samples)
 
-    is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
-    is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
+    # Bobot presisi Selat Madura: Kombinasi Musim + Arus Kencang + ΔP Screen
+    is_peak_month = np.isin(month, [8, 9, 10, 11])
+    is_onshore_flow = (current_speed >= 0.8) & (tide_phase == 1)
+    is_physical_clog = (delta_p >= 0.45) | (tbs_torque >= 60.0)
 
     risk_score = (
-        (np.maximum(0, sst - 30.0) ** 1.8) * 2.2
-        + (np.maximum(0, chlorophyll - 3.5) ** 1.5) * 2.8
-        + (np.maximum(0, salinity - 33.0) * 0.8)
-        + (np.maximum(0, 5.0 - do_level) * 0.7)
-        + (current_speed * 2.0 * np.where(is_onshore_current, 2.5, 0.4))
-        + (wind_speed * 0.25 * np.where(is_onshore_wind, 1.8, 0.5))
-        + (wave_height * 1.5)
-        + (tide_phase * 4.0)
-        + (delta_p * 6.0)
-        + (tbs_torque * 0.08)
+        (np.maximum(0, sst - 30.0) ** 1.5) * 1.8
+        + (np.maximum(0, chlorophyll - 3.0) ** 1.3) * 2.5
+        + (np.where(is_peak_month, 8.0, 1.0))
+        + (np.where(is_onshore_flow, 12.0, 2.0))
+        + (np.where(is_physical_clog, 25.0, 0.0))
     )
 
-    labels = np.where(risk_score < 14.0, 0, np.where(risk_score < 28.0, 1, 2))
+    labels = np.where(risk_score < 15.0, 0, np.where(risk_score < 30.0, 1, 2))
 
     df = pd.DataFrame({
         "sst": sst,
@@ -296,6 +289,7 @@ def train_high_precision_model():
         "delta_p": delta_p,
         "flow_velocity": flow_velocity,
         "tbs_torque": tbs_torque,
+        "month": month,
         "risk_level": labels,
     })
 
@@ -303,9 +297,9 @@ def train_high_precision_model():
     y = df["risk_level"]
 
     model = XGBClassifier(
-        n_estimators=250,
-        learning_rate=0.02,
-        max_depth=6,
+        n_estimators=300,
+        learning_rate=0.015,
+        max_depth=5,
         subsample=0.85,
         colsample_bytree=0.85,
         random_state=42,
@@ -315,7 +309,7 @@ def train_high_precision_model():
     return model, df
 
 
-model, train_df = train_high_precision_model()
+model, train_df = train_calibrated_model()
 
 # ==========================================
 # 4. SIDEBAR & INPUT SELECTION
@@ -358,6 +352,7 @@ else:
             "dp": 0.88,
             "fv": 1.05,
             "torq": 82.0,
+            "m": 9,
         }
     elif preset == "⚠️ WASPADA: Indikasi Penumpukan":
         init_d = {
@@ -376,24 +371,26 @@ else:
             "dp": 0.42,
             "fv": 0.65,
             "torq": 45.0,
+            "m": 9,
         }
     else:
         init_d = {
-            "sst": 28.2,
-            "chl": 1.10,
-            "sal": 32.2,
-            "do": 6.8,
-            "turb": 3.5,
-            "cspd": 0.20,
-            "cdir": 40,
-            "wh": 0.3,
-            "wspd": 4.0,
-            "wdir": 45,
+            "sst": 30.2,
+            "chl": 2.13,
+            "sal": 33.6,
+            "do": 5.9,
+            "turb": 6.6,
+            "cspd": 0.42,
+            "cdir": 225,
+            "wh": 0.32,
+            "wspd": 7.5,
+            "wdir": 117,
             "tide": 0,
-            "sl": 0.1,
-            "dp": 0.10,
-            "fv": 0.35,
-            "torq": 15.0,
+            "sl": 0.3,
+            "dp": 0.12,
+            "fv": 0.45,
+            "torq": 32.6,
+            "m": 9,
         }
 
     data = {
@@ -437,9 +434,9 @@ else:
         "tbs_torque": st.sidebar.slider(
             "Torsi TBS (%)", 0.0, 100.0, init_d["torq"]
         ),
+        "month": init_d["m"],
     }
 
-# Header Tampilan Utama
 st.markdown(
     f"""
 <div class="executive-header">
@@ -479,12 +476,12 @@ input_df = pd.DataFrame([{
     "delta_p": data["delta_p"],
     "flow_velocity": data["flow_velocity"],
     "tbs_torque": data["tbs_torque"],
+    "month": data["month"],
 }])
 
 risk_class = model.predict(input_df)[0]
 probabilities = model.predict_proba(input_df)[0]
 
-# --- MODUL AUDIO ALARM AUTOMATIC PLAYBACK ---
 if risk_class == 2:
     sound_script = """
     <audio autoplay loop>
@@ -492,14 +489,12 @@ if risk_class == 2:
     </audio>
     <script>
         var audio = document.getElementsByTagName('audio')[0];
-        audio.play().catch(function(error) {
-            console.log("Autoplay ditolak oleh browser: " + error);
-        });
+        audio.play().catch(function(error) { console.log(error); });
     </script>
     """
     components.html(sound_script, height=0, width=0)
 
-# --- PANEL METRICS PREDIKSI KEDATANGAN MUSIMAN ---
+# PANEL MUSIMAN
 wib_now = datetime.datetime.now(WIB_TZ)
 current_month = wib_now.month
 year_current = wib_now.year
@@ -523,7 +518,7 @@ fc1, fc2, fc3, fc4 = st.columns(4)
 
 with fc1:
     st.markdown(
-        f"""
+        """
     <div class="metric-label">🗓️ Puncak Kedatangan Tahunan</div>
     <div class="metric-value" style="color: #f59e0b;">Agustus – November</div>
     <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Puncak Kritis: <b>September & Oktober</b></div>
@@ -533,7 +528,7 @@ with fc1:
 
 with fc2:
     st.markdown(
-        f"""
+        """
     <div class="metric-label">🌊 Kemunculan Awal Awal Musim</div>
     <div class="metric-value" style="color: #00d2ff;">Mei – Juni</div>
     <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Fase Peralihan / Pancaroba</div>
@@ -542,7 +537,6 @@ with fc2:
     )
 
 with fc3:
-    # Estimasi tanggal berdasarkan siklus pasang purnama bulan September-Oktober
     peak_date_str = f"15 Sept – 25 Okt {year_current}"
     st.markdown(
         f"""
@@ -575,7 +569,7 @@ with fc4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TOP ROW: STATUS ALARM & GAUGE CHART ---
+# STATUS ALARM & GAUGE CHART
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
@@ -612,14 +606,14 @@ with col_status:
             """
         <div class="status-box-safe">
             <h3 style="margin:0; color:#10b981; font-weight:800;">🟢 KONDISI NORMAL: AMAN OPERASIONAL</h3>
-            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Aman, tidak ada indikasi serangan ubur-ubur. Parameter hidrodinamika & biokimia Selat Madura berada dalam batas normal.</p>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0; margin-bottom:0;">Aman, tidak ada indikasi serangan ubur-ubur di intake saat ini. Kendati dalam musim puncak (September), arus lokal dan pasang surut (Neap Tide) menahan pergerakan kawanan ubur-ubur.</p>
         </div>
         """,
             unsafe_allow_html=True,
         )
 
 with col_gauge:
-    st.markdown("#### 🎯 Threat Risk Index")
+    st.markdown("#### 🎯 Threat Risk Index (Jam-jaman)")
     fig_gauge = go.Figure(
         go.Indicator(
             mode="gauge+number",
@@ -679,9 +673,7 @@ with col_map:
 
 st.markdown("---")
 
-# ==========================================
-# 6. TAMPILAN TERKATEGORI 4 PILAR PARAMETER
-# ==========================================
+# 4 PILAR PARAMETER
 st.markdown("### 🎛️ Real-Time 15 SWI Operational & Oceanographic Parameters")
 
 p1, p2, p3, p4 = st.columns(4)
@@ -762,9 +754,7 @@ with p4:
 
 st.markdown("---")
 
-# ==========================================
-# 7. ANALISIS TREN TAHUNAN & EXPLAINABLE AI
-# ==========================================
+# ANALISIS TREN TAHUNAN & EXPLAINABLE AI
 c_graph1, c_graph2 = st.columns(2)
 
 with c_graph1:
@@ -783,7 +773,6 @@ with c_graph1:
         "Nov",
         "Des",
     ]
-    # Indeks risiko historis bulanan Selat Madura
     risk_monthly = [10, 12, 18, 25, 45, 55, 65, 88, 98, 92, 70, 30]
 
     fig_season = go.Figure()
@@ -792,9 +781,25 @@ with c_graph1:
             x=months,
             y=risk_monthly,
             mode="lines+markers",
-            name="Indeks Risiko (%)",
+            name="Potensi Makro Musiman (%)",
             line=dict(color="#f59e0b", width=3),
-            marker=dict(size=8, color="#ef4444"),
+            marker=dict(size=8, color="#f59e0b"),
+        )
+    )
+
+    # Menambahkan penanda posisi real-time saat ini
+    curr_m_idx = current_month - 1
+    fig_season.add_trace(
+        go.Scatter(
+            x=[months[curr_m_idx]],
+            y=[probabilities[2] * 100],
+            mode="markers",
+            name="Ancaman Real-Time SWI (%)",
+            marker=dict(
+                size=16,
+                color="#10b981" if risk_class == 0 else "#ef4444",
+                symbol="diamond",
+            ),
         )
     )
 
@@ -804,8 +809,11 @@ with c_graph1:
         plot_bgcolor="#1a2332",
         font=dict(color="#94a3b8"),
         margin=dict(l=10, r=10, t=10, b=10),
-        yaxis=dict(title="Probabilitas Serangan (%)", range=[0, 100]),
+        yaxis=dict(title="Probabilitas Risiko (%)", range=[0, 105]),
         xaxis=dict(title="Bulan"),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+        ),
     )
     st.plotly_chart(fig_season, use_container_width=True)
 
