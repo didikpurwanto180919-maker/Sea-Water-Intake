@@ -20,7 +20,6 @@ st.set_page_config(
 # ==========================================
 # AUTO REFRESH TIAP 10 DETIK (10.000 ms)
 # ==========================================
-# Komponen ini memicu perulangan skrip Streamlit secara otomatis setiap 10 detik
 st_autorefresh(interval=10000, limit=None, key="jellyfish_auto_refresh")
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
@@ -31,40 +30,39 @@ st.subheader(
 st.markdown("---")
 
 # ==========================================
-# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI
+# KOORDINAT PRESISI INTAKE SWI PLTGU GRATI
+# Location: Inlet Canal Mouth / Jetty, Wates, Lekok, Pasuruan
+# Coordinates: -7.6531, 113.0289
 # ==========================================
-# Titik Intake SWI PLTGU Grati (Berdasarkan Google Maps)
-GRATI_LAT = -7.6433
-GRATI_LON = 113.0238
+GRATI_LAT = -7.6531
+GRATI_LON = 113.0289
 
-# Titik Sampel Model Laut (~300m ke Laut Lepas untuk Grid Marine Open-Meteo)
-OCEAN_LAT = -7.6400
-OCEAN_LON = 113.0238
+# Titik Sampel Model Oseanografi Open-Meteo (~300m ke Laut Lepas)
+OCEAN_LAT = -7.6495
+OCEAN_LON = 113.0289
 
 
 # ==========================================
-# FUNGSI FETCH LIVE DATA (TANPA CACHE CACHE DECORATOR)
+# FUNGSI FETCH LIVE DATA (REAL-TIME API)
 # ==========================================
 def get_live_ocean_data():
   try:
-    # 1. API Weather & Wind (Live)
+    # 1. API Weather & Wind
     url_weather = (
         f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
     )
     req_w = requests.get(url_weather, timeout=4)
-    res_w = req_w.json()
-    wind_speed = (
-        res_w.get("current", {}).get("wind_speed_10m", 6.5) if req_w.ok else 6.5
-    )
+    res_w = req_w.json() if req_w.ok else {}
+    wind_speed = res_w.get("current", {}).get("wind_speed_10m", 6.5)
 
     # 2. API Marine / Oceanography (SST & Current Velocity)
     url_marine = (
         f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}&current=sea_surface_temperature,ocean_current_velocity"
     )
     req_m = requests.get(url_marine, timeout=4)
-    res_m = req_m.json()
+    res_m = req_m.json() if req_m.ok else {}
 
-    current_data = res_m.get("current", {}) if req_m.ok else {}
+    current_data = res_m.get("current", {})
 
     sst = current_data.get("sea_surface_temperature")
     if sst is None:
@@ -79,7 +77,7 @@ def get_live_ocean_data():
     chlorophyll = round(1.5 + (sst - 28.0) * 0.4, 2)
 
     return {
-        "status": "Success (Live Auto-Update)",
+        "status": "Success (Live Auto-Update 10s)",
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
         "sst": round(sst, 2),
         "salinity": salinity,
@@ -229,7 +227,7 @@ with col_left:
   )
 
 with col_right:
-  st.subheader("📍 Koordinat Intake PLTGU Grati")
+  st.subheader("📍 Peta Satelit Intake SWI PLTGU Grati")
   st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
 
   # Peta Citra Satelit Google via Folium
@@ -246,9 +244,9 @@ with col_right:
 
   folium.Marker(
       [GRATI_LAT, GRATI_LON],
-      popup="Inlet SWI PLTGU Grati",
+      popup="Inlet Mouth Intake SWI PLTGU Grati",
       tooltip="Inlet SWI PLTGU Grati",
       icon=folium.Icon(color="red", icon="info-sign"),
   ).add_to(m)
 
-  st_folium(m, width=420, height=320, key="grati_map")
+  st_folium(m, width=420, height=320, key="grati_map_presisi")
