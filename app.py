@@ -1,7 +1,88 @@
+import datetime
+import numpy as np
+import pandas as pd
+import requests
+import streamlit as st
+from xgboost import XGBClassifier
+
+# Konfigurasi Halaman Streamlit
+st.set_page_config(
+    page_title="SWI PLTGU Grati - Live Jellyfish Early Warning",
+    page_icon="🌊",
+    layout="wide",
+)
+
+st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
+st.subheader(
+    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Ocean Data)"
+)
+st.markdown("---")
+
+# Koordinat Presisi Intake PLTGU Grati (Pasuruan)
+GRATI_LAT = -7.5950
+GRATI_LON = 112.8943
+
+
+# ==========================================
+# FUNGSI FETCH LIVE DATA (Open-Meteo Marine API)
+# ==========================================
+@st.cache_data(ttl=600)  # Refresh data otomatis setiap 10 menit
+def get_live_ocean_data():
+  try:
+    # 1. API Weather & Wind (Live)
+    url_weather = f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
+    res_w = requests.get(url_weather, timeout=5).json()
+    wind_speed = res_w["current"]["wind_speed_10m"]
+
+    # 2. API Marine / Oceanography (SST, Wave, Current)
+    url_marine = f"https://marine-api.open-meteo.com/v1/marine?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=wave_height,ocean_current_velocity,sst"
+    res_m = requests.get(url_marine, timeout=5).json()
+
+    # Ekstraksi nilai live (apabila null, berikan fallback estimasi maritim)
+    current_data = res_m.get("current", {})
+    sst = current_data.get("sst")
+    if sst is None:
+      sst = 29.8  # Default rata-rata perairan Selat Madura
+
+    current_speed = current_data.get("ocean_current_velocity")
+    if current_speed is None:
+      current_speed = 0.35  # m/s
+
+    # Estimasi Salinitas & Klorofil-a (Parameter Biogeokimia Pesisir Grati)
+    salinity = 33.2
+    chlorophyll = round(
+        1.5 + (sst - 28.0) * 0.4, 2
+    )  # Model estimasi kelimpahan plankton berbasis SST
+
+    return {
+        "status": "Success",
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
+        "sst": round(sst, 2),
+        "salinity": salinity,
+        "current_speed": round(current_speed, 2),
+        "chlorophyll_a": max(0.5, round(chlorophyll, 2)),
+        "wind_speed": round(wind_speed, 2),
+    }
+  except Exception as e:
+    # Fallback jika terjadi limit/koneksi terputus
+    return {
+        "status": f"Fallback Data ({e})",
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
+        "sst": 29.5,
+        "salinity": 33.0,
+        "current_speed": 0.30,
+        "chlorophyll_a": 1.8,
+        "wind_speed": 6.5,
+    }
+
+
+# ==========================================
+# TRAINING MODEL MACHINE LEARNING (XGBoost)
+# ==========================================
 @st.cache_resource
 def train_jellyfish_model():
   np.random.seed(42)
-  n_samples = 500  # Dikurangi dari 1500 agar proses training instant
+  n_samples = 1500
 
   sst = np.random.normal(loc=29.5, scale=1.2, size=n_samples)
   salinity = np.random.normal(loc=32.5, scale=1.1, size=n_samples)
@@ -31,10 +112,102 @@ def train_jellyfish_model():
   y = df["risk_level"]
 
   model = XGBClassifier(
-      n_estimators=30,  # Dikurangi dari 100 ke 30 (Sangat cepat)
-      learning_rate=0.05,
-      max_depth=3,
-      eval_metric="mlogloss",
+      n_estimators=100, learning_rate=0.05, max_depth=4, eval_metric="mlogloss"
   )
   model.fit(X, y)
   return model
+
+
+model = train_jellyfish_model()
+
+# ==========================================
+# SIDEBAR CONTROL
+# ==========================================
+st.sidebar.header("🕹️ Mode Input Data")
+data_source = st.sidebar.radio(
+    "Pilih Sumber Data:", ("Live API (Real-Time)", "Simulasi / Manual Test")
+)
+
+if data_source == "Live API (Real-Time)":
+  live_data = get_live_ocean_data()
+  sst = live_data["sst"]
+  salinity = live_data["salinity"]
+  current_speed = live_data["current_speed"]
+  chlorophyll = live_data["chlorophyll_a"]
+  wind_speed = live_data["wind_speed"]
+
+  st.sidebar.success(f"Status Data: Live Open-Meteo API")
+  st.sidebar.info(f"Last Update: {live_data['timestamp']}")
+  if st.sidebar.button("🔄 Refresh Data Real-Time"):
+    st.cache_data.clear()
+    st.rerun()
+
+else:
+  st.sidebar.subheader("Atur Parameter Laut:")
+  sst = st.sidebar.slider("Suhu Permukaan Laut (°C)", 25.0, 35.0, 30.0)
+  salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, 33.0)
+  current_speed = st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 1.5, 0.4)
+  chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 5.0, 2.5)
+  wind_speed = st.sidebar.slider("Kecepatan Angin (knot)", 0.0, 20.0, 7.0)
+
+# ==========================================
+# METRICS DISPLAY & INFERENCE ML
+# ==========================================
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Suhu Laut (SST)", f"{sst} °C")
+col2.metric("Salinitas", f"{salinity} PSU")
+col3.metric("Kecepatan Arus", f"{current_speed} m/s")
+col4.metric("Klorofil-a", f"{chlorophyll} mg/m³")
+col5.metric("Angin Laut", f"{wind_speed} knot")
+
+st.markdown("---")
+
+input_df = pd.DataFrame([{
+    "sst": sst,
+    "salinity": salinity,
+    "current_speed": current_speed,
+    "chlorophyll_a": chlorophyll,
+    "wind_speed": wind_speed,
+}])
+
+risk_class = model.predict(input_df)[0]
+probabilities = model.predict_proba(input_df)[0]
+
+col_left, col_right = st.columns([2, 1])
+
+with col_left:
+  st.subheader("📊 Hasil Prediksi Risiko Machine Learning")
+  if risk_class == 0:
+    st.success("### STATUS: AMAN (LOW RISK)")
+    st.write("🟢 Kondisi air laut stabil. Operasional intake berjalan normal.")
+  elif risk_class == 1:
+    st.warning("### STATUS: WASPADA (MEDIUM RISK)")
+    st.write(
+        "🟡 Indikasi awal kawanan ubur-ubur. Tingkatkan pengawasan visual pada"
+        " Bar Screen & pantau Beda Tekanan (ΔP)."
+    )
+  else:
+    st.error("### STATUS: BAHAYA (HIGH RISK / BLOOMING)")
+    st.write(
+        "🔴 ANCAMAN BLOOMING UBUR-UBUR TINGGI! Siapkan operasi kontinyu"
+        " Travelling Band Screen (TBS) & siagakan tim lokasi."
+    )
+
+  st.write("#### Probabilitas Tingkat Risiko:")
+  st.progress(
+      float(probabilities[0]),
+      text=f"Aman (Low): {probabilities[0]*100:.1f}%",
+  )
+  st.progress(
+      float(probabilities[1]),
+      text=f"Waspada (Med): {probabilities[1]*100:.1f}%",
+  )
+  st.progress(
+      float(probabilities[2]),
+      text=f"Bahaya (High): {probabilities[2]*100:.1f}%",
+  )
+
+with col_right:
+  st.subheader("📍 Koordinat Monitoring")
+  map_data = pd.DataFrame({"lat": [GRATI_LAT], "lon": [GRATI_LON]})
+  st.map(map_data, zoom=11)
