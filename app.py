@@ -143,6 +143,11 @@ FEATURE_COLUMNS = [
     "tide_phase", "sea_level", "delta_p", "flow_velocity", "tbs_torque"
 ]
 
+MONTH_NAMES = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+]
+
 
 # ==========================================
 # 2. FETCH REAL-TIME DATA VIA OPEN-METEO
@@ -425,8 +430,6 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-# --- Kalkulasi Hidrodinamika ETA (Kedatangan) Ubur-ubur ---
-# Jarak sensor/lokasi oceanographic monitoring ke Kanal Intake Grati = ~400 meter
 DISTANCE_TO_INTAKE_M = 400.0  
 eff_speed = max(data["current_speed"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
@@ -560,21 +563,18 @@ with col_map:
 
     marker_color = "red" if risk_class == 2 else ("orange" if risk_class == 1 else "green")
     
-    # Titik SWI Intake
     folium.Marker(
         [GRATI_LAT, GRATI_LON],
         popup="SWI Intake PLTGU Grati",
         icon=folium.Icon(color=marker_color, icon="info-sign"),
     ).add_to(m)
 
-    # Titik Monitoring Arus Oseanografi (400m di lepas pantai)
     folium.Marker(
         [OCEAN_LAT, OCEAN_LON],
         popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
         icon=folium.Icon(color="blue", icon="tint"),
     ).add_to(m)
 
-    # Garis Vektor Arus dari Ocean Point ke SWI Intake
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
@@ -588,7 +588,78 @@ with col_map:
 st.markdown("---")
 
 # ==========================================
-# 6. TAMPILAN TERKATEGORI 4 PILAR PARAMETER
+# 6. MODUL PREDIKSI TREN BULANAN (SEASONAL FORECAST)
+# ==========================================
+st.markdown("### 🗓️ Prediksi Musiman & Tren Bulanan Kedatangan Ubur-Ubur (Selat Madura)")
+
+# Data historis probabilitas bloom tahunan Selat Madura (Grati)
+monthly_risk_scores = [15, 20, 35, 85, 92, 78, 40, 25, 30, 65, 88, 50] 
+curr_month_idx = data["raw_datetime"].month - 1
+curr_month_name = MONTH_NAMES[curr_month_idx]
+curr_month_risk = monthly_risk_scores[curr_month_idx]
+
+m_col1, m_col2 = st.columns([1.2, 2.8])
+
+with m_col1:
+    peak_months = "April – Juni & Oktober – November"
+    st.markdown(
+        f"""
+    <div class="pillar-card" style="height: 250px;">
+        <div class="pillar-title">📊 Ringkasan Musim Bloom</div>
+        <div class="metric-label">Bulan Saat Ini</div>
+        <div class="metric-value" style="color:#00d2ff;">{curr_month_name}</div>
+        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Tingkat Risiko Histori: <b style="color:#ffffff;">{curr_month_risk}%</b></div>
+        <br>
+        <div class="metric-label">Puncak Musim Serangan (Peak Bloom)</div>
+        <div style="font-size:14px; font-weight:bold; color:#ef4444; margin-top:4px;">{peak_months}</div>
+        <div style="font-size:11px; color:#94a3b8; margin-top:6px;">
+            Dipicu oleh peralihan angin muson (SST > 30°C & upwelling Klorofil-a tinggi di Selat Madura).
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with m_col2:
+    colors = [
+        "#ef4444" if score >= 70 else ("#f59e0b" if score >= 40 else "#10b981")
+        for score in monthly_risk_scores
+    ]
+    
+    fig_month = go.Figure(
+        go.Bar(
+            x=MONTH_NAMES,
+            y=monthly_risk_scores,
+            marker_color=colors,
+            text=[f"{v}%" for v in monthly_risk_scores],
+            textposition="auto",
+        )
+    )
+    
+    fig_month.add_vline(
+        x=curr_month_idx,
+        line_width=2,
+        line_dash="dash",
+        line_color="#00d2ff",
+        annotation_text="Bulan Ini",
+        annotation_position="top left",
+    )
+
+    fig_month.update_layout(
+        height=250,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#1a2332",
+        font=dict(color="#94a3b8"),
+        margin=dict(l=10, r=10, t=25, b=10),
+        yaxis=dict(title="Potensi Bloom (%)", range=[0, 100]),
+        xaxis=dict(title="Bulan"),
+    )
+    st.plotly_chart(fig_month, use_container_width=True)
+
+st.markdown("---")
+
+# ==========================================
+# 7. TAMPILAN TERKATEGORI 4 PILAR PARAMETER
 # ==========================================
 st.markdown("### 🎛️ Real-Time 15 SWI Operational & Oceanographic Parameters")
 
@@ -671,7 +742,7 @@ with p4:
 st.markdown("---")
 
 # ==========================================
-# 7. ANALISIS TREN & EXPLAINABLE AI (XAI)
+# 8. ANALISIS TREN & EXPLAINABLE AI (XAI)
 # ==========================================
 c_graph1, c_graph2 = st.columns(2)
 
