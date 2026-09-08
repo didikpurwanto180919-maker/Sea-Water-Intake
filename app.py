@@ -21,11 +21,11 @@ st.subheader(
 st.markdown("---")
 
 # ==========================================
-# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (PASUARAN)
-# Location: Intake Canal Outer Channel, Tj. Warangan, Lekok
+# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (PASURUAN)
+# Location: Inlet Canal Mouth, Tj. Warangan / Wates, Lekok
 # ==========================================
-GRATI_LAT = -7.6186
-GRATI_LON = 113.0125
+GRATI_LAT = -7.6338
+GRATI_LON = 113.0135
 
 
 # ==========================================
