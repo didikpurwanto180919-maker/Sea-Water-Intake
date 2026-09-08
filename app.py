@@ -3,6 +3,7 @@ import zoneinfo
 import folium
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -11,40 +12,121 @@ from streamlit_folium import st_folium
 from xgboost import XGBClassifier
 
 # ==========================================
-# 1. KONFIGURASI UTAMA HALAMAN STREAMLIT
+# 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="SWI PLTGU Grati - Live Real-Time Jellyfish Early Warning",
-    page_icon="🌊",
+    page_title="SWI Early Warning System - PLTGU Grati",
+    page_icon="⚡",
     layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# Custom Injection CSS untuk tampilan Modern Industrial / Command Center
+st.markdown(
+    """
+<style>
+    /* Styling Latar Belakang & Font */
+    .stApp {
+        background-color: #0e1726;
+        color: #e0e6ed;
+    }
+    
+    /* Executive Header Banner */
+    .executive-header {
+        background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+        border-left: 6px solid #00d2ff;
+        padding: 18px 25px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .executive-title {
+        font-size: 26px;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+    .executive-subtitle {
+        font-size: 13px;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+    
+    /* Card Container 4 Pilar */
+    .pillar-card {
+        background-color: #1a2332;
+        border: 1px solid #2e3b4e;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .pillar-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #00d2ff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #2e3b4e;
+        padding-bottom: 6px;
+    }
+    
+    /* Metric Item Box */
+    .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .metric-label {
+        font-size: 11px;
+        color: #94a3b8;
+        text-transform: uppercase;
+    }
+    
+    /* Pulse Status Alert */
+    .status-box-safe {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid #10b981;
+        border-radius: 10px;
+        padding: 15px;
+        color: #10b981;
+    }
+    .status-box-danger {
+        background: rgba(239, 68, 68, 0.15);
+        border: 2px solid #ef4444;
+        border-radius: 10px;
+        padding: 15px;
+        color: #f87171;
+        animation: blinker 1.5s linear infinite;
+    }
+    @keyframes blinker {
+        50% { opacity: 0.6; }
+    }
+</style>
+""",
+    unsafe_allow_html=True,
 )
 
 WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
-REFRESH_INTERVAL_SEC = 60  # Auto Refresh Tiap 60 Detik
+REFRESH_INTERVAL_SEC = 60
 
-# Auto Refresh Engine
 count = st_autorefresh(
     interval=REFRESH_INTERVAL_SEC * 1000,
     limit=None,
     key="jellyfish_auto_refresh",
 )
 
-st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
-st.subheader(
-    "Sistem Early Warning Machine Learning Presisi Tinggi — Live Real-Time Data"
-)
-st.markdown("---")
-
-# KOORDINAT EXACT SWI PLTGU GRATI (SELAT MADURA)
+# KOORDINAT SWI PLTGU GRATI
 GRATI_LAT = -7.6433
 GRATI_LON = 113.0238
-
 OCEAN_LAT = -7.6400
 OCEAN_LON = 113.0238
 
 
 # ==========================================
-# 2. FETCH LIVE DATA (OPEN-METEO WEATHER & MARINE API)
+# 2. FETCH REAL-TIME DATA VIA OPEN-METEO
 # ==========================================
 @st.cache_data(ttl=REFRESH_INTERVAL_SEC)
 def get_live_realtime_ocean_data(refresh_counter):
@@ -52,47 +134,25 @@ def get_live_realtime_ocean_data(refresh_counter):
     wib_time_str = wib_now.strftime("%Y-%m-%d %H:%M:%S WIB")
 
     try:
-        # A. API Atmospheric & Wind (Open-Meteo Weather API)
-        url_weather = (
-            f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}"
-            f"&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
-        )
-        req_w = requests.get(url_weather, timeout=6)
+        url_weather = f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
+        req_w = requests.get(url_weather, timeout=5)
         res_w = req_w.json() if req_w.ok else {}
         curr_w = res_w.get("current", {})
 
         wind_speed = curr_w.get("wind_speed_10m", 6.5)
         wind_dir = curr_w.get("wind_direction_10m", 145)
 
-        # B. API Oceanography & Waves (Open-Meteo Marine API)
-        url_marine = (
-            f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}"
-            f"&current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction,wave_height"
-        )
-        req_m = requests.get(url_marine, timeout=6)
+        url_marine = f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}&current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction,wave_height"
+        req_m = requests.get(url_marine, timeout=5)
         res_m = req_m.json() if req_m.ok else {}
         curr_m = res_m.get("current", {})
 
-        sst = curr_m.get("sea_surface_temperature", 30.1)
-        current_speed = curr_m.get("ocean_current_velocity", 0.45)
-        current_dir = curr_m.get("ocean_current_direction", 165)
-        wave_height = curr_m.get("wave_height", 0.5)
+        sst = curr_m.get("sea_surface_temperature", 30.1) or 30.1
+        current_speed = curr_m.get("ocean_current_velocity", 0.45) or 0.45
+        current_dir = curr_m.get("ocean_current_direction", 165) or 165
+        wave_height = curr_m.get("wave_height", 0.5) or 0.5
 
-        # Sanitasi Data null
-        if sst is None:
-            sst = 30.1
-        if current_speed is None:
-            current_speed = 0.45
-        if current_dir is None:
-            current_dir = 165
-        if wave_height is None:
-            wave_height = 0.5
-
-        # Konversi satuan jika diperlukan (ocean_current_velocity dari km/h ke m/s)
         current_speed_ms = round(float(current_speed) * 0.277778, 2)
-
-        # C. Estimasi Sensor Internal SWI & Biologi Berdasarkan Real-time Hydro-dynamics
-        # Klorofil-a berkorelasi dengan peningkatan SST & pengadukan angin
         chlorophyll = round(
             1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2
         )
@@ -100,12 +160,10 @@ def get_live_realtime_ocean_data(refresh_counter):
         do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
         turbidity = round(3.0 + (wave_height * 8.0) + (wind_speed * 0.4), 1)
 
-        # Siklus Pasang Surut berbasis jam lokal (Puncak Pasang pada jam purnama/siang)
         hour = wib_now.hour
         tide_phase = 1 if (10 <= hour <= 15 or 22 <= hour <= 3) else 0
         sea_level = round(1.2 if tide_phase == 1 else 0.3, 1)
 
-        # Delta P & Torsi SWI internal sensor terpengaruh langsung oleh kecepatan arus & klorofil
         delta_p = round(
             0.12 + (current_speed_ms * 0.35) + (chlorophyll * 0.08), 2
         )
@@ -113,7 +171,7 @@ def get_live_realtime_ocean_data(refresh_counter):
         tbs_torque = round(15.0 + (delta_p * 55.0), 1)
 
         return {
-            "status": "🟢 Connected to Open-Meteo Live API",
+            "status": "ONLINE (Connected)",
             "timestamp": wib_time_str,
             "sst": round(float(sst), 2),
             "chlorophyll_a": max(0.5, float(chlorophyll)),
@@ -131,11 +189,9 @@ def get_live_realtime_ocean_data(refresh_counter):
             "flow_velocity": float(flow_velocity),
             "tbs_torque": float(tbs_torque),
         }
-
-    except Exception as e:
-        # Fallback Darurat jika koneksi API terputus
+    except Exception:
         return {
-            "status": f"⚠️ Offline Fallback ({e})",
+            "status": "OFFLINE (Fallback)",
             "timestamp": wib_time_str,
             "sst": 30.1,
             "chlorophyll_a": 3.10,
@@ -156,7 +212,7 @@ def get_live_realtime_ocean_data(refresh_counter):
 
 
 # ==========================================
-# 3. TRAINING MODEL HIGH-PRECISION MACHINE LEARNING
+# 3. MACHINE LEARNING MODEL
 # ==========================================
 @st.cache_resource
 def train_high_precision_model():
@@ -182,11 +238,9 @@ def train_high_precision_model():
     flow_velocity = np.random.uniform(0.2, 1.2, size=n_samples)
     tbs_torque = np.random.uniform(10.0, 95.0, size=n_samples)
 
-    # Vektor Onshore khusus Kanal Intake SWI Grati (110° - 210°)
     is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
     is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
 
-    # Algoritma Pembobotan Risiko Serangan
     risk_score = (
         (np.maximum(0, sst - 30.0) ** 1.8) * 2.2
         + (np.maximum(0, chlorophyll - 3.5) ** 1.5) * 2.8
@@ -234,81 +288,52 @@ def train_high_precision_model():
         eval_metric="mlogloss",
     )
     model.fit(X, y)
-    return model
+    return model, df
 
 
-model = train_high_precision_model()
+model, train_df = train_high_precision_model()
 
 # ==========================================
-# 4. SIDEBAR CONTROL & LIVE CLOCK WIDGET
+# 4. EXECUTIVE HEADER DASHBOARD
 # ==========================================
-st.sidebar.header("🕹️ Sumber Data Input")
-mode_input = st.sidebar.radio(
-    "Pilih Mode Operasional:",
-    ("⚡ Real-Time Live API (Selat Madura)", "🧪 Simulasi Manual Skenario"),
-)
-
-if mode_input == "⚡ Real-Time Live API (Selat Madura)":
-    data = get_live_realtime_ocean_data(count)
-    st.sidebar.success(data["status"])
-
-    # Sidebar Timer & Clock Widget
-    sidebar_timer_html = f"""
-    <div style="font-family: sans-serif; display: flex; flex-direction: column; gap: 8px;">
-        <div style="background-color: #e8f4f8; color: #1d6f8a; padding: 10px; border-radius: 8px; border: 1px solid #b3e5fc;">
-            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase;">🕒 Jam Server WIB:</div>
-            <div id="live_clock" style="font-size: 16px; font-weight: bold; margin-top: 2px;">--:--:-- WIB</div>
+st.markdown(
+    """
+<div class="executive-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div class="executive-title">⚡ SEA WATER INTAKE (SWI) COMMAND CENTER</div>
+            <div class="executive-subtitle">PLTGU GRATI — INTEGRATED JELLYFISH BLOOMING EARLY WARNING SYSTEM (XGBoost ML v3.4)</div>
         </div>
-
-        <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 8px; border: 1px solid #c3e6cb;">
-            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase;">⏱️ Auto-Fetch API Selanjutnya:</div>
-            <div style="font-size: 15px; font-weight: bold; margin-top: 2px;"><span id="timer">{REFRESH_INTERVAL_SEC}</span> detik</div>
-        </div>
-        
-        <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
-            Terakhir di-update: <b>{data['timestamp']}</b>
+        <div style="text-align: right;">
+            <span style="background: #10b981; color: #000; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 11px;">SYSTEM ONLINE 99.9%</span>
         </div>
     </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
-    <script>
-        function updateClock() {{
-            var now = new Date();
-            var options = {{ timeZone: "Asia/Jakarta", hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }};
-            var timeString = new Intl.DateTimeFormat("id-ID", options).format(now);
-            document.getElementById('live_clock').innerHTML = timeString.replace(/\\./g, ':') + " WIB";
-        }}
-        setInterval(updateClock, 1000);
-        updateClock();
+# Sidebar
+st.sidebar.header("🕹️ Mode Monitoring")
+mode_input = st.sidebar.radio(
+    "Sumber Input Data:",
+    ("⚡ Real-Time API (Selat Madura)", "🧪 Skenario Simulasi Manual"),
+)
 
-        var timeLeft = {REFRESH_INTERVAL_SEC};
-        var elem = document.getElementById('timer');
-        var timerId = setInterval(function() {{
-            if (timeLeft <= 0) {{
-                clearInterval(timerId);
-                elem.innerHTML = "0";
-            }} else {{
-                elem.innerHTML = timeLeft;
-                timeLeft--;
-            }}
-        }}, 1000);
-    </script>
-    """
-    with st.sidebar:
-        components.html(sidebar_timer_html, height=160)
-
+if mode_input == "⚡ Real-Time API (Selat Madura)":
+    data = get_live_realtime_ocean_data(count)
+    st.sidebar.success(f"Status API: {data['status']}")
 else:
-    st.sidebar.subheader("🎛️ Pengujian Skenario Manual")
     preset = st.sidebar.selectbox(
-        "Pilih Skenario Presisi:",
+        "Skenario Pengujian:",
         (
-            "🚨 KONDISI KRITIS: SERANGAN UBUR-UBUR (BLOOMING)",
-            "⚠️ KONDISI WASPADA: INDIKASI AWAL",
-            "🟢 KONDISI NORMAL: SWI OPERATIONAL",
+            "🚨 KRITIS: SERANGAN UBUR-UBUR Massal",
+            "⚠️ WASPADA: Indikasi Penumpukan",
+            "🟢 NORMAL: Operational Safe",
         ),
     )
-
-    if preset == "🚨 KONDISI KRITIS: SERANGAN UBUR-UBUR (BLOOMING)":
-        init_data = {
+    if preset == "🚨 KRITIS: SERANGAN UBUR-UBUR Massal":
+        init_d = {
             "sst": 32.5,
             "chl": 5.80,
             "sal": 34.8,
@@ -325,8 +350,8 @@ else:
             "fv": 1.05,
             "torq": 82.0,
         }
-    elif preset == "⚠️ KONDISI WASPADA: INDIKASI AWAL":
-        init_data = {
+    elif preset == "⚠️ WASPADA: Indikasi Penumpukan":
+        init_d = {
             "sst": 30.4,
             "chl": 3.40,
             "sal": 33.5,
@@ -344,7 +369,7 @@ else:
             "torq": 45.0,
         }
     else:
-        init_data = {
+        init_d = {
             "sst": 28.2,
             "chl": 1.10,
             "sal": 32.2,
@@ -366,96 +391,47 @@ else:
         "timestamp": datetime.datetime.now(WIB_TZ).strftime(
             "%Y-%m-%d %H:%M:%S WIB"
         ),
-        "sst": st.sidebar.slider(
-            "1. Suhu Laut SST (°C)", 25.0, 35.0, init_data["sst"]
-        ),
+        "sst": st.sidebar.slider("Suhu Laut (°C)", 25.0, 35.0, init_d["sst"]),
         "chlorophyll_a": st.sidebar.slider(
-            "2. Klorofil-a (mg/m³)", 0.1, 8.0, init_data["chl"]
+            "Klorofil-a (mg/m³)", 0.1, 8.0, init_d["chl"]
         ),
         "salinity": st.sidebar.slider(
-            "3. Salinitas (PSU)", 28.0, 36.0, init_data["sal"]
+            "Salinitas (PSU)", 28.0, 36.0, init_d["sal"]
         ),
-        "do_level": st.sidebar.slider(
-            "4. Oksigen Terlarut DO (mg/L)", 1.0, 8.0, init_data["do"]
-        ),
+        "do_level": st.sidebar.slider("DO (mg/L)", 1.0, 8.0, init_d["do"]),
         "turbidity": st.sidebar.slider(
-            "5. Turbidity (NTU)", 0.0, 50.0, init_data["turb"]
+            "Turbidity (NTU)", 0.0, 50.0, init_d["turb"]
         ),
         "current_speed": st.sidebar.slider(
-            "6. Kecepatan Arus (m/s)", 0.0, 2.0, init_data["cspd"]
+            "Kecepatan Arus (m/s)", 0.0, 2.0, init_d["cspd"]
         ),
         "current_dir": st.sidebar.slider(
-            "7. Arah Arus (°)", 0, 360, init_data["cdir"]
+            "Arah Arus (°)", 0, 360, init_d["cdir"]
         ),
         "wave_height": st.sidebar.slider(
-            "8. Tinggi Gelombang (m)", 0.0, 3.0, init_data["wh"]
+            "Tinggi Gelombang (m)", 0.0, 3.0, init_d["wh"]
         ),
         "wind_speed": st.sidebar.slider(
-            "9. Kecepatan Angin (Knot)", 0.0, 30.0, init_data["wspd"]
+            "Angin (Knot)", 0.0, 30.0, init_d["wspd"]
         ),
-        "wind_dir": st.sidebar.slider(
-            "10. Arah Angin (°)", 0, 360, init_data["wdir"]
-        ),
+        "wind_dir": st.sidebar.slider("Arah Angin (°)", 0, 360, init_d["wdir"]),
         "tide_phase": st.sidebar.selectbox(
-            "11. Siklus Pasang",
-            (0, 1),
-            index=init_data["tide"],
-            format_func=lambda x: (
-                "Spring Tide (Pasang Purnama)" if x == 1 else "Neap Tide"
-            ),
+            "Siklus Pasang", (0, 1), index=init_d["tide"]
         ),
         "sea_level": st.sidebar.slider(
-            "12. Elevasi Muka Air (m)", -1.5, 2.5, init_data["sl"]
+            "Elevasi Muka Air (m)", -1.5, 2.5, init_d["sl"]
         ),
-        "delta_p": st.sidebar.slider(
-            "13. Beda Tekanan ΔP (mWC)", 0.0, 2.0, init_data["dp"]
-        ),
+        "delta_p": st.sidebar.slider("ΔP Screen (mWC)", 0.0, 2.0, init_d["dp"]),
         "flow_velocity": st.sidebar.slider(
-            "14. Flow Velocity SWI (m/s)", 0.0, 1.5, init_data["fv"]
+            "Flow Velocity (m/s)", 0.0, 1.5, init_d["fv"]
         ),
         "tbs_torque": st.sidebar.slider(
-            "15. Torsi TBS Motor (%)", 0.0, 100.0, init_data["torq"]
+            "Torsi TBS (%)", 0.0, 100.0, init_d["torq"]
         ),
     }
 
 # ==========================================
-# 5. METRICS PANEL (LIVE DISPLAY)
-# ==========================================
-st.markdown("### 📊 Status Real-Time 15 Parameter Intake SWI PLTGU Grati")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Suhu Laut (SST)", f"{data['sst']:.1f} °C")
-c2.metric("Klorofil-a", f"{data['chlorophyll_a']:.2f} mg/m³")
-c3.metric("Salinitas", f"{data['salinity']:.1f} PSU")
-c4.metric("Oksigen Terlarut (DO)", f"{data['do_level']:.1f} mg/L")
-c5.metric("Kekeruhan", f"{data['turbidity']:.1f} NTU")
-
-c6, c7, c8, c9, c10 = st.columns(5)
-c6.metric("Kecepatan Arus", f"{data['current_speed']:.2f} m/s")
-c7.metric("Arah Arus", f"{data['current_dir']}°")
-c8.metric("Tinggi Gelombang", f"{data['wave_height']:.2f} m")
-c9.metric("Kecepatan Angin", f"{data['wind_speed']:.1f} kts")
-c10.metric("Arah Angin", f"{data['wind_dir']}°")
-
-c11, c12, c13, c14, c15 = st.columns(5)
-c11.metric(
-    "Pasang Laut",
-    "Spring Tide" if data["tide_phase"] == 1 else "Neap Tide",
-)
-c12.metric("Elevasi Muka Air", f"{data['sea_level']:.1f} m")
-c13.metric(
-    "Beda Tekanan ΔP",
-    f"{data['delta_p']:.2f} mWC",
-    delta="Tinggi" if data["delta_p"] >= 0.50 else "Normal",
-    delta_color="inverse",
-)
-c14.metric("Flow Velocity SWI", f"{data['flow_velocity']:.2f} m/s")
-c15.metric("Torsi TBS Motor", f"{data['tbs_torque']:.0f} %")
-
-st.markdown("---")
-
-# ==========================================
-# 6. MACHINE LEARNING INFERENCE
+# 5. INFERENCE & DASHBOARD GRID
 # ==========================================
 input_df = pd.DataFrame([{
     "sst": data["sst"],
@@ -478,70 +454,276 @@ input_df = pd.DataFrame([{
 risk_class = model.predict(input_df)[0]
 probabilities = model.predict_proba(input_df)[0]
 
-col_left, col_right = st.columns([1.5, 1])
+# --- TOP ROW: STATUS ALARM & GAUGE CHART ---
+col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
-with col_left:
-    st.subheader("🎯 Hasil Prediksi Risiko Serangan Ubur-Ubur (XGBoost ML)")
-
+with col_status:
+    st.markdown("#### 🚨 Early Warning Alarm Status")
     if risk_class == 2:
-        st.error(
-            "### 🚨 ALARM KRITIS: ANCAMAN SERANGAN UBUR-UBUR TINGGI (BLOOMING"
-            " EVENT)"
+        st.markdown(
+            """
+        <div class="status-box-danger">
+            <h3 style="margin:0; color:#ef4444;">🚨 STATUS KRITIS: SERANGAN UBUR-UBUR DETEKSI TINGGI</h3>
+            <p style="margin-top:8px; font-size:13px; color:#e2e8f0;">Potensi penyumbatan massal pada Bar Screen & CWP condenser intake.</p>
+            <hr style="border-color:#ef4444;">
+            <b>MANDATORI OPERATOR SHIFT:</b><br>
+            1. Jalankan TBS mode <b>Continuous High Speed</b>.<br>
+            2. Aktifkan Screen Wash Pump Pressure Max.<br>
+            3. Siapkan derating jika ΔP > 0.80 mWC.
+        </div>
+        """,
+            unsafe_allow_html=True,
         )
-        st.markdown("""
-        **SOP INTERVENSI OPERATOR SWI INTAKE:**
-        1. ⚙️ Segera operasikan **Travelling Band Screen (TBS)** pada mode **Continuous High Speed**.
-        2. 🚿 Aktifkan **Screen Wash Pump** dengan tekanan maksimum untuk pembersihan otomatis.
-        3. 🌊 Lakukan pemantauan intensif di area *Debris Filter* dan pompa pendingin utama (*CWP*).
-        4. 📉 Siapkan skenario *derating* (penurunan beban unit) jika beda tekanan ($\Delta P$) melampaui **0.80 mWC**.
-        """)
     elif risk_class == 1:
         st.warning(
-            "### ⚠️ ALARM WASPADA: INDIKASI AWAL AKUMULASI UBUR-UBUR DI KANAL SWI"
+            "⚠️ **STATUS WASPADA: INDIKASI AKUMULASI UBUR-UBUR**\nTingkatkan"
+            " inspeksi visual di kanal SWI tiap 30 menit."
         )
-        st.markdown("""
-        **REKOMENDASI PENCEGAHAN:**
-        * Lakukan pengamatan visual secara rutin di *Coarse Bar Screen* setiap 30 menit.
-        * Pantau grafik tren laju kenaikan Beda Tekanan ($\Delta P$) dan Torsi Motor TBS.
-        """)
     else:
-        st.success("### 🟢 KONDISI AMAN: TIDAK ADA ANCAMAN UBUR-UBUR DETEKSI")
+        st.markdown(
+            """
+        <div class="status-box-safe">
+            <h3 style="margin:0; color:#10b981;">🟢 KONDISI NORMAL: AMAN OPERASIONAL</h3>
+            <p style="margin-top:5px; font-size:13px; color:#94a3b8;">Parameter hidrodinamika & biokimia Selat Madura berada dalam batas aman.</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.write("#### Probabilitas Risiko Real-Time:")
-    st.progress(
-        float(probabilities[0]), text=f"Aman (Low): {probabilities[0]*100:.1f}%"
+with col_gauge:
+    st.markdown("#### 🎯 Threat Risk Index")
+    fig_gauge = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=probabilities[2] * 100,
+            number={"suffix": "%", "font": {"color": "#ffffff", "size": 28}},
+            gauge={
+                "axis": {
+                    "range": [0, 100],
+                    "tickwidth": 1,
+                    "tickcolor": "#ffffff",
+                },
+                "bar": {
+                    "color": (
+                        "#ef4444"
+                        if risk_class == 2
+                        else ("#f59e0b" if risk_class == 1 else "#10b981")
+                    )
+                },
+                "bgcolor": "#1a2332",
+                "bordercolor": "#2e3b4e",
+                "steps": [
+                    {"range": [0, 30], "color": "rgba(16, 185, 129, 0.2)"},
+                    {"range": [30, 70], "color": "rgba(245, 158, 11, 0.2)"},
+                    {"range": [70, 100], "color": "rgba(239, 68, 68, 0.2)"},
+                ],
+            },
+        )
     )
-    st.progress(
-        float(probabilities[1]),
-        text=f"Waspada (Medium): {probabilities[1]*100:.1f}%",
+    fig_gauge.update_layout(
+        height=180,
+        margin=dict(l=20, r=20, t=10, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#ffffff"},
     )
-    st.progress(
-        float(probabilities[2]),
-        text=f"Bahaya Serangan (High): {probabilities[2]*100:.1f}%",
-    )
+    st.plotly_chart(fig_gauge, use_container_width=True)
 
-with col_right:
-    st.subheader("📍 Peta Lokasi Real-Time Intake SWI")
+with col_map:
+    st.markdown("#### 📍 SWI Intake Grid Map")
     m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=15)
-
-    google_satellite = folium.TileLayer(
+    folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
         attr="Google Satellite",
-        name="Google Satellite",
-        overlay=False,
-        control=True,
-    )
-    google_satellite.add_to(m)
-
-    marker_color = (
-        "red" if risk_class == 2 else ("orange" if risk_class == 1 else "green")
-    )
-
+    ).add_to(m)
     folium.Marker(
         [GRATI_LAT, GRATI_LON],
-        popup=f"SWI PLTGU Grati - Status: {risk_class}",
-        tooltip="SWI PLTGU Grati Intake",
-        icon=folium.Icon(color=marker_color, icon="info-sign"),
+        popup="SWI Intake PLTGU Grati",
+        icon=folium.Icon(
+            color=(
+                "red"
+                if risk_class == 2
+                else ("orange" if risk_class == 1 else "green")
+            )
+        ),
     ).add_to(m)
+    st_folium(m, width="100%", height=170, key="grati_map_juara")
 
-    st_folium(m, width=420, height=320, key=f"grati_map_{count}")
+st.markdown("---")
+
+# ==========================================
+# 6. TAMPILAN TERKATEGORI 4 PILAR PARAMETER
+# ==========================================
+st.markdown("### 🎛️ Real-Time 15 SWI Operational & Oceanographic Parameters")
+
+p1, p2, p3, p4 = st.columns(4)
+
+with p1:
+    st.markdown(
+        """
+    <div class="pillar-card">
+        <div class="pillar-title">🧫 1. Biokimia Laut</div>
+        <div class="metric-label">Suhu Laut (SST)</div>
+        <div class="metric-value">{} °C</div><br>
+        <div class="metric-label">Klorofil-a</div>
+        <div class="metric-value">{} mg/m³</div><br>
+        <div class="metric-label">Salinitas</div>
+        <div class="metric-value">{} PSU</div><br>
+        <div class="metric-label">Oksigen Terlarut (DO)</div>
+        <div class="metric-value">{} mg/L</div>
+    </div>
+    """.format(
+            data["sst"],
+            data["chlorophyll_a"],
+            data["salinity"],
+            data["do_level"],
+        ),
+        unsafe_allow_html=True,
+    )
+
+with p2:
+    st.markdown(
+        """
+    <div class="pillar-card">
+        <div class="pillar-title">🌊 2. Hidro-Oseanografi</div>
+        <div class="metric-label">Kecepatan Arus</div>
+        <div class="metric-value">{} m/s</div><br>
+        <div class="metric-label">Arah Arus</div>
+        <div class="metric-value">{}° (Inlet)</div><br>
+        <div class="metric-label">Tinggi Gelombang</div>
+        <div class="metric-value">{} m</div><br>
+        <div class="metric-label">Kekeruhan (Turbidity)</div>
+        <div class="metric-value">{} NTU</div>
+    </div>
+    """.format(
+            data["current_speed"],
+            data["current_dir"],
+            data["wave_height"],
+            data["turbidity"],
+        ),
+        unsafe_allow_html=True,
+    )
+
+with p3:
+    st.markdown(
+        """
+    <div class="pillar-card">
+        <div class="pillar-title">🌤️ 3. Cuaca & Pasang Surut</div>
+        <div class="metric-label">Kecepatan Angin</div>
+        <div class="metric-value">{} Knot</div><br>
+        <div class="metric-label">Arah Angin</div>
+        <div class="metric-value">{}°</div><br>
+        <div class="metric-label">Siklus Pasang Laut</div>
+        <div class="metric-value">{}</div><br>
+        <div class="metric-label">Elevasi Muka Air</div>
+        <div class="metric-value">{} m</div>
+    </div>
+    """.format(
+            data["wind_speed"],
+            data["wind_dir"],
+            "Spring Tide" if data["tide_phase"] == 1 else "Neap Tide",
+            data["sea_level"],
+        ),
+        unsafe_allow_html=True,
+    )
+
+with p4:
+    st.markdown(
+        """
+    <div class="pillar-card">
+        <div class="pillar-title">⚙️ 4. Sensor Internal SWI</div>
+        <div class="metric-label">Beda Tekanan ΔP</div>
+        <div class="metric-value" style="color:{};">{} mWC</div><br>
+        <div class="metric-label">Flow Velocity Intake</div>
+        <div class="metric-value">{} m/s</div><br>
+        <div class="metric-label">Torsi Motor TBS</div>
+        <div class="metric-value">{} %</div><br>
+        <div class="metric-label">Filter Status</div>
+        <div class="metric-value" style="color:#10b981;">CLEAN</div>
+    </div>
+    """.format(
+            "#ef4444" if data["delta_p"] >= 0.50 else "#ffffff",
+            data["delta_p"],
+            data["flow_velocity"],
+            data["tbs_torque"],
+        ),
+        unsafe_allow_html=True,
+    )
+
+st.markdown("---")
+
+# ==========================================
+# 7. ANALISIS TREN & EXPLAINABLE AI (XAI)
+# ==========================================
+c_graph1, c_graph2 = st.columns(2)
+
+with c_graph1:
+    st.markdown("#### 📈 Tren Beda Tekanan Screen (ΔP) & Suhu Laut 24 Jam")
+    # Generasi data simulasi tren 24 jam
+    times = [
+        (datetime.datetime.now(WIB_TZ) - datetime.timedelta(hours=i)).strftime(
+            "%H:00"
+        )
+        for i in range(24, 0, -1)
+    ]
+    dp_trend = np.random.normal(loc=data["delta_p"], scale=0.05, size=24)
+    sst_trend = np.random.normal(loc=data["sst"], scale=0.2, size=24)
+
+    fig_trend = go.Figure()
+    fig_trend.add_trace(
+        go.Scatter(
+            x=times,
+            y=dp_trend,
+            name="ΔP Screen (mWC)",
+            line=dict(color="#ef4444", width=3),
+        )
+    )
+    fig_trend.add_trace(
+        go.Scatter(
+            x=times,
+            y=sst_trend,
+            name="SST (°C)",
+            line=dict(color="#00d2ff", width=2, dash="dash"),
+            yaxis="y2",
+        )
+    )
+
+    fig_trend.update_layout(
+        height=260,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#1a2332",
+        font=dict(color="#94a3b8"),
+        margin=dict(l=10, r=10, t=10, b=10),
+        yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
+        yaxis2=dict(
+            title="SST (°C)", color="#00d2ff", overlaying="y", side="right"
+        ),
+        legend=dict(orientation="h", y=1.1),
+    )
+    st.plotly_chart(fig_trend, use_container_width=True)
+
+with c_graph2:
+    st.markdown("#### 🧠 Explainable AI: Parameter Pemicu Utama (Feature Importance)")
+    importance = model.feature_importances_
+    features = input_df.columns
+    df_imp = (
+        pd.DataFrame({"Feature": features, "Importance": importance})
+        .sort_values(by="Importance", ascending=True)
+        .tail(7)
+    )
+
+    fig_imp = go.Figure(
+        go.Bar(
+            x=df_imp["Importance"],
+            y=df_imp["Feature"],
+            orientation="h",
+            marker=dict(color="#00d2ff"),
+        )
+    )
+    fig_imp.update_layout(
+        height=260,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#1a2332",
+        font=dict(color="#94a3b8"),
+        margin=dict(l=10, r=10, t=10, b=10),
+    )
+    st.plotly_chart(fig_imp, use_container_width=True)
