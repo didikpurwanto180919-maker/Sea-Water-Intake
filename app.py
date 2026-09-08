@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 from xgboost import XGBClassifier
@@ -21,14 +22,22 @@ st.set_page_config(
 # Set Zona Waktu WIB (Asia/Jakarta)
 WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
 
+# REFRESH INTERVAL (DETIK)
+REFRESH_INTERVAL_SEC = 60
+
 # ==========================================
-# AUTO REFRESH TIAP 60 DETIK (1 MENIT)
+# AUTO REFRESH TIAP 60 DETIK
 # ==========================================
-count = st_autorefresh(interval=60000, limit=None, key="jellyfish_auto_refresh")
+count = st_autorefresh(
+    interval=REFRESH_INTERVAL_SEC * 1000,
+    limit=None,
+    key="jellyfish_auto_refresh",
+)
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
 st.subheader(
-    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Calibrated Model)"
+    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update"
+    " 60s)"
 )
 st.markdown("---")
 
@@ -45,7 +54,7 @@ OCEAN_LON = 113.0238
 # ==========================================
 # FUNGSI FETCH LIVE DATA (CACHE 60 DETIK)
 # ==========================================
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=REFRESH_INTERVAL_SEC)
 def get_live_ocean_data(refresh_id):
     wib_now = datetime.datetime.now(WIB_TZ)
     wib_time_str = wib_now.strftime("%Y-%m-%d %H:%M:%S WIB")
@@ -77,7 +86,6 @@ def get_live_ocean_data(refresh_id):
         if current_speed is None:
             current_speed = 0.30
 
-        # Parameter Biogeokimia Pesisir Terkalibrasi
         salinity = 33.2
         chlorophyll = round(1.2 + (sst - 28.0) * 0.35 + (wind_speed * 0.03), 2)
 
@@ -104,22 +112,19 @@ def get_live_ocean_data(refresh_id):
 
 
 # ==========================================
-# TRAINING MODEL MACHINE LEARNING (KALI BRASI AKTUAL)
+# TRAINING MODEL MACHINE LEARNING
 # ==========================================
 @st.cache_resource
 def train_jellyfish_model():
     np.random.seed(42)
     n_samples = 3000
 
-    # Distribusi data historis perairan Grati
     sst = np.random.normal(loc=29.5, scale=1.0, size=n_samples)
     salinity = np.random.normal(loc=33.0, scale=0.8, size=n_samples)
     current_speed = np.random.exponential(scale=0.25, size=n_samples)
     chlorophyll = np.random.gamma(shape=2.2, scale=0.6, size=n_samples)
     wind_speed = np.random.uniform(1.0, 15.0, size=n_samples)
 
-    # Indeks Risiko Fisiologis Terkalibrasi
-    # Blooming ubur-ubur hanya terjadi pada kondisi ekstrem gabungan (SST > 31°C & Klorofil > 3.5 mg/m³)
     risk_score = (
         np.maximum(0, sst - 30.0) * 1.5
         + np.maximum(0, chlorophyll - 3.0) * 2.0
@@ -127,8 +132,6 @@ def train_jellyfish_model():
         + (wind_speed * 0.1)
     )
 
-    # Pembagian Kuantil Terkalibrasi:
-    # Aman (70% kondisi normal), Waspada (20% awal indikasi), Bahaya (10% kondisi ekstrem blooming)
     labels = pd.qcut(risk_score, q=[0, 0.70, 0.90, 1.0], labels=[0, 1, 2])
 
     df = pd.DataFrame({
@@ -174,7 +177,40 @@ if data_source == "Live API (Real-Time)":
     chlorophyll = live_data["chlorophyll_a"]
     wind_speed = live_data["wind_speed"]
 
-    st.sidebar.success("⚡ Live Refresh: 60 Detik (1 Menit)")
+    st.sidebar.success("⚡ Live Auto-Refresh Active")
+
+    # VISUAL COUNTDOWN TIMER (HTML + JS)
+    countdown_html = f"""
+    <div style="
+        background-color: #d4edda;
+        color: #155724;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #c3e6cb;
+        font-family: sans-serif;
+        font-size: 14px;
+        margin-bottom: 10px;
+    ">
+        <b>⏱️ Next Refresh In: <span id="timer" style="font-weight: bold; color: #0c5460;">{REFRESH_INTERVAL_SEC}</span>s</b>
+    </div>
+
+    <script>
+        var timeLeft = {REFRESH_INTERVAL_SEC};
+        var elem = document.getElementById('timer');
+        var timerId = setInterval(function() {{
+            if (timeLeft <= 0) {{
+                clearInterval(timerId);
+                elem.innerHTML = "0";
+            }} else {{
+                elem.innerHTML = timeLeft;
+                timeLeft--;
+            }}
+        }}, 1000);
+    </script>
+    """
+    with st.sidebar:
+        components.html(countdown_html, height=65)
+
     st.sidebar.info(f"Last Update: {live_data['timestamp']}")
 
 else:
