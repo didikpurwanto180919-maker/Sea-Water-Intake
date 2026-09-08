@@ -14,13 +14,13 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="SWI Early Warning System - PLTGU Grati",
+    page_title="Prediksi Serangan Ubur-Ubur SWI PLTGU Grati - ML",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom Injection CSS untuk tampilan Modern Industrial / Command Center
+# Custom Injection CSS untuk tampilan Modern Industrial Command Center
 st.markdown(
     """
 <style>
@@ -38,7 +38,7 @@ st.markdown(
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .executive-title {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 800;
         color: #ffffff;
         letter-spacing: 0.5px;
@@ -46,8 +46,19 @@ st.markdown(
     }
     .executive-subtitle {
         font-size: 13px;
-        color: #94a3b8;
-        margin-top: 4px;
+        color: #00d2ff;
+        margin-top: 5px;
+        font-weight: 600;
+    }
+    .realtime-badge {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid #10b981;
+        color: #10b981;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 12px;
+        display: inline-block;
     }
     
     .pillar-card {
@@ -111,6 +122,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Pengaturan Auto Refresh setiap 60 Detik (1 Menit)
 WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
 REFRESH_INTERVAL_SEC = 60
 
@@ -133,7 +145,7 @@ OCEAN_LON = 113.0238
 @st.cache_data(ttl=REFRESH_INTERVAL_SEC)
 def get_live_realtime_ocean_data(refresh_counter):
     wib_now = datetime.datetime.now(WIB_TZ)
-    wib_time_str = wib_now.strftime("%Y-%m-%d %H:%M:%S WIB")
+    wib_time_str = wib_now.strftime("%d %B %Y | %H:%M:%S WIB")
 
     try:
         url_weather = f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}&current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
@@ -298,22 +310,9 @@ model, train_df = train_high_precision_model()
 # ==========================================
 # 4. EXECUTIVE HEADER DASHBOARD
 # ==========================================
-st.markdown(
-    """
-<div class="executive-header">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <div class="executive-title">⚡ SEA WATER INTAKE (SWI) COMMAND CENTER</div>
-            <div class="executive-subtitle">PLTGU GRATI — INTEGRATED JELLYFISH BLOOMING EARLY WARNING SYSTEM (XGBoost ML v3.4)</div>
-        </div>
-        <div style="text-align: right;">
-            <span style="background: #10b981; color: #000; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 11px;">SYSTEM ONLINE 99.9%</span>
-        </div>
-    </div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
+# Fetch data pertama kali
+if "mode_choice" not in st.session_state:
+    st.session_state.mode_choice = "⚡ Real-Time API (Selat Madura)"
 
 # Sidebar
 st.sidebar.header("🕹️ Mode Monitoring")
@@ -325,6 +324,9 @@ mode_input = st.sidebar.radio(
 if mode_input == "⚡ Real-Time API (Selat Madura)":
     data = get_live_realtime_ocean_data(count)
     st.sidebar.success(f"Status API: {data['status']}")
+    st.sidebar.info(
+        f"⏱️ Auto Refresh: **60 detik**\n\n📅 Waktu Data: **{data['timestamp']}**"
+    )
 else:
     preset = st.sidebar.selectbox(
         "Skenario Pengujian:",
@@ -391,7 +393,7 @@ else:
 
     data = {
         "timestamp": datetime.datetime.now(WIB_TZ).strftime(
-            "%Y-%m-%d %H:%M:%S WIB"
+            "%d %B %Y | %H:%M:%S WIB"
         ),
         "sst": st.sidebar.slider("Suhu Laut (°C)", 25.0, 35.0, init_d["sst"]),
         "chlorophyll_a": st.sidebar.slider(
@@ -431,6 +433,27 @@ else:
             "Torsi TBS (%)", 0.0, 100.0, init_d["torq"]
         ),
     }
+
+# Header Tampilan Utama
+st.markdown(
+    f"""
+<div class="executive-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div class="executive-title">⚡ SISTEM PREDIKSI SERANGAN UBUR-UBUR SEA WATER INTAKE (SWI) PLTGU GRATI BERBASIS MACHINE LEARNING</div>
+            <div class="executive-subtitle">EARLY WARNING COMMAND CENTER — XGBoost ML v3.4 | SELAT MADURA</div>
+        </div>
+        <div style="text-align: right;">
+            <div class="realtime-badge">🔄 AUTO REFRESH: 1 MENIT</div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 5px;">
+                <b>Waktu Real-Time:</b> {data['timestamp']}
+            </div>
+        </div>
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
 # ==========================================
 # 5. INFERENCE & DASHBOARD GRID
@@ -556,7 +579,6 @@ with col_map:
         ),
     ).add_to(m)
 
-    # st_folium dipanggil tanpa variabel penampung tak terpakai agar tidak memicu output '0'
     st_folium(m, width="100%", height=170, key="grati_map_juara")
 
 st.markdown("---")
