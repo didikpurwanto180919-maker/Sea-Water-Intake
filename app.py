@@ -1,8 +1,11 @@
 import datetime
+import folium
 import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
+from streamlit_folium import st_folium
 from xgboost import XGBClassifier
 
 # ==========================================
@@ -14,8 +17,16 @@ st.set_page_config(
     layout="wide",
 )
 
+# ==========================================
+# AUTO REFRESH DENGAN INTERVAL AMAN (60 DETIK)
+# ==========================================
+# Interval 60.000 ms (1 menit) mencegah batas kuota CPU Streamlit terlampaui
+st_autorefresh(interval=60000, limit=None, key="jellyfish_auto_refresh")
+
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
-st.subheader("Sistem Early Warning Machine Learning Risiko Ubur-Ubur")
+st.subheader(
+    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update)"
+)
 st.markdown("---")
 
 # ==========================================
@@ -28,7 +39,7 @@ OCEAN_LON = 113.0289
 
 
 # ==========================================
-# FUNGSI FETCH LIVE DATA (CACHE TTL 60 DETIK)
+# FUNGSI FETCH LIVE DATA (DENGAN CACHE TTL 60s)
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def get_live_ocean_data():
@@ -135,93 +146,102 @@ data_source = st.sidebar.radio(
     "Pilih Sumber Data:", ("Live API (Real-Time)", "Simulasi / Manual Test")
 )
 
+if data_source == "Live API (Real-Time)":
+  live_data = get_live_ocean_data()
+  sst = live_data["sst"]
+  salinity = live_data["salinity"]
+  current_speed = live_data["current_speed"]
+  chlorophyll = live_data["chlorophyll_a"]
+  wind_speed = live_data["wind_speed"]
+
+  st.sidebar.success("⚡ Live Auto-Update (60s)")
+  st.sidebar.info(f"Last Update: {live_data['timestamp']}")
+
+else:
+  st.sidebar.subheader("Atur Parameter Laut:")
+  sst = st.sidebar.slider("Suhu Permukaan Laut (°C)", 25.0, 35.0, 30.0)
+  salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, 33.0)
+  current_speed = st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 1.5, 0.4)
+  chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 5.0, 2.5)
+  wind_speed = st.sidebar.slider("Kecepatan Angin (knot)", 0.0, 20.0, 7.0)
 
 # ==========================================
-# FRAGMENT UNTUK AUTO-UPDATE RINGAN (BEBAS THROTTLE)
+# METRICS DISPLAY & INFERENCE ML
 # ==========================================
-@st.fragment(run_every="60s")
-def render_dashboard():
-  if data_source == "Live API (Real-Time)":
-    live_data = get_live_ocean_data()
-    sst = live_data["sst"]
-    salinity = live_data["salinity"]
-    current_speed = live_data["current_speed"]
-    chlorophyll = live_data["chlorophyll_a"]
-    wind_speed = live_data["wind_speed"]
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Suhu Laut (SST)", f"{sst} °C")
+col2.metric("Salinitas", f"{salinity} PSU")
+col3.metric("Kecepatan Arus", f"{current_speed} m/s")
+col4.metric("Klorofil-a", f"{chlorophyll} mg/m³")
+col5.metric("Angin Laut", f"{wind_speed} knot")
 
-    st.sidebar.success("⚡ Live Auto-Update (60s)")
-    st.sidebar.info(f"Last Update: {live_data['timestamp']}")
+st.markdown("---")
+
+input_df = pd.DataFrame([{
+    "sst": sst,
+    "salinity": salinity,
+    "current_speed": current_speed,
+    "chlorophyll_a": chlorophyll,
+    "wind_speed": wind_speed,
+}])
+
+risk_class = model.predict(input_df)[0]
+probabilities = model.predict_proba(input_df)[0]
+
+col_left, col_right = st.columns([1.5, 1])
+
+with col_left:
+  st.subheader("📊 Hasil Prediksi Risiko Machine Learning")
+  if risk_class == 0:
+    st.success("### STATUS: AMAN (LOW RISK)")
+    st.write("🟢 Kondisi air laut stabil. Operasional intake berjalan normal.")
+  elif risk_class == 1:
+    st.warning("### STATUS: WASPADA (MEDIUM RISK)")
+    st.write(
+        "🟡 Indikasi awal kawanan ubur-ubur. Tingkatkan pengawasan visual pada"
+        " Bar Screen & pantau Beda Tekanan (ΔP)."
+    )
   else:
-    st.sidebar.subheader("Atur Parameter Laut:")
-    sst = st.sidebar.slider("Suhu Permukaan Laut (°C)", 25.0, 35.0, 30.0)
-    salinity = st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, 33.0)
-    current_speed = st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 1.5, 0.4)
-    chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 5.0, 2.5)
-    wind_speed = st.sidebar.slider("Kecepatan Angin (knot)", 0.0, 20.0, 7.0)
-
-  # METRICS
-  col1, col2, col3, col4, col5 = st.columns(5)
-  col1.metric("Suhu Laut (SST)", f"{sst} °C")
-  col2.metric("Salinitas", f"{salinity} PSU")
-  col3.metric("Kecepatan Arus", f"{current_speed} m/s")
-  col4.metric("Klorofil-a", f"{chlorophyll} mg/m³")
-  col5.metric("Angin Laut", f"{wind_speed} knot")
-
-  st.markdown("---")
-
-  # PREDIKSI ML
-  input_df = pd.DataFrame([{
-      "sst": sst,
-      "salinity": salinity,
-      "current_speed": current_speed,
-      "chlorophyll_a": chlorophyll,
-      "wind_speed": wind_speed,
-  }])
-
-  risk_class = model.predict(input_df)[0]
-  probabilities = model.predict_proba(input_df)[0]
-
-  col_left, col_right = st.columns([1.5, 1])
-
-  with col_left:
-    st.subheader("📊 Hasil Prediksi Risiko Machine Learning")
-    if risk_class == 0:
-      st.success("### STATUS: AMAN (LOW RISK)")
-      st.write("🟢 Kondisi air laut stabil. Operasional intake berjalan normal.")
-    elif risk_class == 1:
-      st.warning("### STATUS: WASPADA (MEDIUM RISK)")
-      st.write(
-          "🟡 Indikasi awal kawanan ubur-ubur. Tingkatkan pengawasan visual"
-          " pada Bar Screen & pantau Beda Tekanan (ΔP)."
-      )
-    else:
-      st.error("### STATUS: BAHAYA (HIGH RISK / BLOOMING)")
-      st.write(
-          "🔴 ANCAMAN BLOOMING UBUR-UBUR TINGGI! Siapkan operasi kontinyu"
-          " Travelling Band Screen (TBS) & siagakan tim lokasi."
-      )
-
-    st.write("#### Probabilitas Tingkat Risiko:")
-    st.progress(
-        float(probabilities[0]), text=f"Aman (Low): {probabilities[0]*100:.1f}%"
-    )
-    st.progress(
-        float(probabilities[1]),
-        text=f"Waspada (Med): {probabilities[1]*100:.1f}%",
-    )
-    st.progress(
-        float(probabilities[2]),
-        text=f"Bahaya (High): {probabilities[2]*100:.1f}%",
+    st.error("### STATUS: BAHAYA (HIGH RISK / BLOOMING)")
+    st.write(
+        "🔴 ANCAMAN BLOOMING UBUR-UBUR TINGGI! Siapkan operasi kontinyu"
+        " Travelling Band Screen (TBS) & siagakan tim lokasi."
     )
 
-  with col_right:
-    st.subheader("📍 Peta Lokasi Intake SWI PLTGU Grati")
-    st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
+  st.write("#### Probabilitas Tingkat Risiko:")
+  st.progress(
+      float(probabilities[0]), text=f"Aman (Low): {probabilities[0]*100:.1f}%"
+  )
+  st.progress(
+      float(probabilities[1]), text=f"Waspada (Med): {probabilities[1]*100:.1f}%"
+  )
+  st.progress(
+      float(probabilities[2]),
+      text=f"Bahaya (High): {probabilities[2]*100:.1f}%",
+  )
 
-    # Peta Bawaan Streamlit (Sangat Ringan, Ringkas, & Bebas Throttling)
-    map_df = pd.DataFrame({"lat": [GRATI_LAT], "lon": [GRATI_LON]})
-    st.map(map_df, zoom=14)
+with col_right:
+  st.subheader("📍 Peta Satelit Intake SWI PLTGU Grati")
+  st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
 
+  # Render Peta Satelit Google
+  m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=16)
+  google_satellite = folium.TileLayer(
+      tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+      attr="Google Satellite",
+      name="Google Satellite",
+      overlay=False,
+      control=True,
+  )
+  google_satellite.add_to(m)
 
-# Jalankan Dashboard
-render_dashboard()
+  folium.Marker(
+      [GRATI_LAT, GRATI_LON],
+      popup="Inlet Mouth Intake SWI PLTGU Grati",
+      tooltip="Inlet SWI PLTGU Grati",
+      icon=folium.Icon(color="red", icon="info-sign"),
+  ).add_to(m)
+
+  st_folium(
+      m, width=420, height=320, key="grati_map_presisi", returned_objects=[]
+  )
