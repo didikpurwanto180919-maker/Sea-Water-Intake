@@ -1,166 +1,3 @@
-import datetime
-import zoneinfo
-import folium
-import numpy as np
-import pandas as pd
-import requests
-import streamlit as st
-import streamlit.components.v1 as components
-from streamlit_autorefresh import st_autorefresh
-from streamlit_folium import st_folium
-from xgboost import XGBClassifier
-
-# ==========================================
-# KONFIGURASI HALAMAN STREAMLIT
-# ==========================================
-st.set_page_config(
-    page_title="SWI PLTGU Grati - Live Jellyfish Early Warning",
-    page_icon="🌊",
-    layout="wide",
-)
-
-# Set Zona Waktu WIB (Asia/Jakarta)
-WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
-
-# REFRESH INTERVAL (DETIK)
-REFRESH_INTERVAL_SEC = 60
-
-# ==========================================
-# AUTO REFRESH TIAP 60 DETIK
-# ==========================================
-count = st_autorefresh(
-    interval=REFRESH_INTERVAL_SEC * 1000,
-    limit=None,
-    key="jellyfish_auto_refresh",
-)
-
-st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
-st.subheader(
-    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update"
-    " 60s)"
-)
-st.markdown("---")
-
-# ==========================================
-# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI
-# ==========================================
-GRATI_LAT = -7.6433
-GRATI_LON = 113.0238
-
-OCEAN_LAT = -7.6400
-OCEAN_LON = 113.0238
-
-
-# ==========================================
-# FUNGSI FETCH LIVE DATA (CACHE 60 DETIK)
-# ==========================================
-@st.cache_data(ttl=REFRESH_INTERVAL_SEC)
-def get_live_ocean_data(refresh_id):
-    wib_now = datetime.datetime.now(WIB_TZ)
-    wib_time_str = wib_now.strftime("%Y-%m-%d %H:%M:%S WIB")
-
-    try:
-        # 1. API Weather & Wind (Live Open-Meteo)
-        url_weather = (
-            f"https://api.open-meteo.com/v1/forecast?latitude={GRATI_LAT}&longitude={GRATI_LON}"
-            f"&current=temperature_2m,surface_pressure,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
-        )
-        req_w = requests.get(url_weather, timeout=5)
-        res_w = req_w.json() if req_w.ok else {}
-        wind_speed = res_w.get("current", {}).get("wind_speed_10m", 4.8)
-
-        # 2. API Marine / Oceanography (SST & Current Velocity)
-        url_marine = (
-            f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}"
-            f"&current=sea_surface_temperature,ocean_current_velocity"
-        )
-        req_m = requests.get(url_marine, timeout=5)
-        res_m = req_m.json() if req_m.ok else {}
-
-        current_data = res_m.get("current", {})
-        sst = current_data.get("sea_surface_temperature", 29.7)
-        current_speed = current_data.get("ocean_current_velocity", 0.30)
-
-        if sst is None:
-            sst = 29.7
-        if current_speed is None:
-            current_speed = 0.30
-
-        salinity = 33.2
-        chlorophyll = round(1.2 + (sst - 28.0) * 0.35 + (wind_speed * 0.03), 2)
-
-        return {
-            "status": "Success (Live Auto-Update)",
-            "timestamp": wib_time_str,
-            "sst": round(float(sst), 2),
-            "salinity": float(salinity),
-            "current_speed": round(float(current_speed), 2),
-            "chlorophyll_a": max(0.5, round(float(chlorophyll), 2)),
-            "wind_speed": round(float(wind_speed), 2),
-        }
-
-    except Exception as e:
-        return {
-            "status": f"Fallback Data ({e})",
-            "timestamp": wib_time_str,
-            "sst": 29.7,
-            "salinity": 33.2,
-            "current_speed": 0.30,
-            "chlorophyll_a": 2.20,
-            "wind_speed": 4.80,
-        }
-
-
-# ==========================================
-# TRAINING MODEL MACHINE LEARNING
-# ==========================================
-@st.cache_resource
-def train_jellyfish_model():
-    np.random.seed(42)
-    n_samples = 3000
-
-    sst = np.random.normal(loc=29.5, scale=1.0, size=n_samples)
-    salinity = np.random.normal(loc=33.0, scale=0.8, size=n_samples)
-    current_speed = np.random.exponential(scale=0.25, size=n_samples)
-    chlorophyll = np.random.gamma(shape=2.2, scale=0.6, size=n_samples)
-    wind_speed = np.random.uniform(1.0, 15.0, size=n_samples)
-
-    risk_score = (
-        np.maximum(0, sst - 30.0) * 1.5
-        + np.maximum(0, chlorophyll - 3.0) * 2.0
-        + (current_speed * 0.2)
-        + (wind_speed * 0.1)
-    )
-
-    labels = pd.qcut(risk_score, q=[0, 0.70, 0.90, 1.0], labels=[0, 1, 2])
-
-    df = pd.DataFrame({
-        "sst": sst,
-        "salinity": salinity,
-        "current_speed": current_speed,
-        "chlorophyll_a": chlorophyll,
-        "wind_speed": wind_speed,
-        "risk_level": labels,
-    })
-
-    X = df.drop(columns=["risk_level"])
-    y = df["risk_level"]
-
-    model = XGBClassifier(
-        n_estimators=100,
-        learning_rate=0.03,
-        max_depth=4,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=42,
-        eval_metric="mlogloss",
-    )
-    model.fit(X, y)
-    return model
-
-
-model = train_jellyfish_model()
-
 # ==========================================
 # SIDEBAR CONTROL
 # ==========================================
@@ -179,22 +16,39 @@ if data_source == "Live API (Real-Time)":
 
     st.sidebar.success("⚡ Live Auto-Refresh Active")
 
-    # VISUAL COUNTDOWN TIMER (HTML + JS)
-    countdown_html = f"""
-    <div style="
-        background-color: #d4edda;
-        color: #155724;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid #c3e6cb;
-        font-family: sans-serif;
-        font-size: 14px;
-        margin-bottom: 10px;
-    ">
-        <b>⏱️ Next Refresh In: <span id="timer" style="font-weight: bold; color: #0c5460;">{REFRESH_INTERVAL_SEC}</span>s</b>
+    # WIDGET JAM DIGITAL BERJALAN & COUNTDOWN TIMER (HTML + JS)
+    sidebar_timer_html = f"""
+    <div style="font-family: sans-serif; display: flex; flex-direction: column; gap: 8px;">
+        <!-- Jam Digital WIB Real-Time -->
+        <div style="background-color: #e8f4f8; color: #1d6f8a; padding: 10px; border-radius: 8px; border: 1px solid #bbee33;">
+            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase;">🕒 Jam Server Live (WIB):</div>
+            <div id="live_clock" style="font-size: 16px; font-weight: bold; margin-top: 2px;">--:--:-- WIB</div>
+        </div>
+
+        <!-- Countdown Timer Auto Refresh -->
+        <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 8px; border: 1px solid #c3e6cb;">
+            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase;">⏱️ Next Data Refresh:</div>
+            <div style="font-size: 15px; font-weight: bold; margin-top: 2px;"><span id="timer">{REFRESH_INTERVAL_SEC}</span> detik</div>
+        </div>
+        
+        <!-- Catatan Timestamp Tarik Data -->
+        <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
+            Last API Fetch: <b>{live_data['timestamp']}</b>
+        </div>
     </div>
 
     <script>
+        // 1. Fungsi Jam Digital Running (WIB / GMT+7)
+        function updateClock() {{
+            var now = new Date();
+            var options = {{ timeZone: "Asia/Jakarta", hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }};
+            var timeString = new Intl.DateTimeFormat("id-ID", options).format(now);
+            document.getElementById('live_clock').innerHTML = timeString.replace(/\./g, ':') + " WIB";
+        }}
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 2. Fungsi Countdown Timer Hitung Mundur
         var timeLeft = {REFRESH_INTERVAL_SEC};
         var elem = document.getElementById('timer');
         var timerId = setInterval(function() {{
@@ -208,10 +62,9 @@ if data_source == "Live API (Real-Time)":
         }}, 1000);
     </script>
     """
-    with st.sidebar:
-        components.html(countdown_html, height=65)
 
-    st.sidebar.info(f"Last Update: {live_data['timestamp']}")
+    with st.sidebar:
+        components.html(sidebar_timer_html, height=160)
 
 else:
     st.sidebar.subheader("Atur Parameter Laut:")
@@ -220,84 +73,3 @@ else:
     current_speed = st.sidebar.slider("Kecepatan Arus (m/s)", 0.0, 2.0, 0.30, 0.01)
     chlorophyll = st.sidebar.slider("Klorofil-a (mg/m³)", 0.1, 8.0, 2.20, 0.01)
     wind_speed = st.sidebar.slider("Kecepatan Angin (knot)", 0.0, 25.0, 4.8, 0.1)
-
-# ==========================================
-# METRICS DISPLAY & INFERENCE ML
-# ==========================================
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Suhu Laut (SST)", f"{sst:.1f} °C")
-col2.metric("Salinitas", f"{salinity:.1f} PSU")
-col3.metric("Kecepatan Arus", f"{current_speed:.2f} m/s")
-col4.metric("Klorofil-a", f"{chlorophyll:.2f} mg/m³")
-col5.metric("Angin Laut", f"{wind_speed:.1f} knot")
-
-st.markdown("---")
-
-input_df = pd.DataFrame([{
-    "sst": sst,
-    "salinity": salinity,
-    "current_speed": current_speed,
-    "chlorophyll_a": chlorophyll,
-    "wind_speed": wind_speed,
-}])
-
-risk_class = model.predict(input_df)[0]
-probabilities = model.predict_proba(input_df)[0]
-
-col_left, col_right = st.columns([1.5, 1])
-
-with col_left:
-    st.subheader("📊 Hasil Prediksi Risiko Machine Learning")
-    if risk_class == 0:
-        st.success("### STATUS: AMAN (LOW RISK)")
-        st.write("🟢 Kondisi air laut stabil. Operasional intake berjalan normal.")
-    elif risk_class == 1:
-        st.warning("### STATUS: WASPADA (MEDIUM RISK)")
-        st.write(
-            "🟡 Indikasi awal kawanan ubur-ubur. Tingkatkan pengawasan visual pada"
-            " Bar Screen & pantau Beda Tekanan (ΔP)."
-        )
-    else:
-        st.error("### STATUS: BAHAYA (HIGH RISK / BLOOMING)")
-        st.write(
-            "🔴 ANCAMAN BLOOMING UBUR-UBUR TINGGI! Siapkan operasi kontinyu"
-            " Travelling Band Screen (TBS) & siagakan tim lokasi."
-        )
-
-    st.write("#### Probabilitas Tingkat Risiko:")
-    st.progress(
-        float(probabilities[0]),
-        text=f"Aman (Low): {probabilities[0]*100:.1f}%",
-    )
-    st.progress(
-        float(probabilities[1]),
-        text=f"Waspada (Med): {probabilities[1]*100:.1f}%",
-    )
-    st.progress(
-        float(probabilities[2]),
-        text=f"Bahaya (High): {probabilities[2]*100:.1f}%",
-    )
-
-with col_right:
-    st.subheader("📍 Koordinat Intake PLTGU Grati")
-    st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
-
-    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=16)
-
-    google_satellite = folium.TileLayer(
-        tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-        attr="Google Satellite",
-        name="Google Satellite",
-        overlay=False,
-        control=True,
-    )
-    google_satellite.add_to(m)
-
-    folium.Marker(
-        [GRATI_LAT, GRATI_LON],
-        popup="Inlet SWI PLTGU Grati",
-        tooltip="Inlet SWI PLTGU Grati",
-        icon=folium.Icon(color="red", icon="info-sign"),
-    ).add_to(m)
-
-    st_folium(m, width=420, height=320, key=f"grati_map_{count}")
