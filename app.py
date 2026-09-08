@@ -21,11 +21,12 @@ st.subheader(
 st.markdown("---")
 
 # ==========================================
-# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (PASURUAN)
-# Location: Inlet Canal Mouth, Tj. Warangan / Wates, Lekok
+# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (GOOGLE MAPS LOCATION)
+# Location: Inlet Canal Mouth, PLTGU Grati, Wates, Lekok, Pasuruan
+# Coordinates: -7.6433, 113.0238
 # ==========================================
-GRATI_LAT = -7.6338
-GRATI_LON = 113.0135
+GRATI_LAT = -7.6433
+GRATI_LON = 113.0238
 
 
 # ==========================================
@@ -211,6 +212,7 @@ with col_left:
   )
 
 with col_right:
-  st.subheader("📍 Koordinat Monitoring Intake")
+  st.subheader("📍 Koordinat Intake PLTGU Grati")
+  st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
   map_data = pd.DataFrame({"lat": [GRATI_LAT], "lon": [GRATI_LON]})
-  st.map(map_data, zoom=14)
+  st.map(map_data, zoom=15)
