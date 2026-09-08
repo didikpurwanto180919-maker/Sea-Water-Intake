@@ -18,30 +18,33 @@ st.set_page_config(
 )
 
 # ==========================================
-# AUTO REFRESH DENGAN INTERVAL AMAN (60 DETIK)
+# AUTO REFRESH TIAP 10 DETIK (10.000 ms)
 # ==========================================
-# Interval 60.000 ms (1 menit) mencegah batas kuota CPU Streamlit terlampaui
-st_autorefresh(interval=60000, limit=None, key="jellyfish_auto_refresh")
+st_autorefresh(interval=10000, limit=None, key="jellyfish_auto_refresh")
 
 st.title("🌊 Sea Water Intake Monitoring - PLTGU Grati")
 st.subheader(
-    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update)"
+    "Sistem Early Warning Machine Learning Risiko Ubur-Ubur (Live Auto Update"
+    " 10s)"
 )
 st.markdown("---")
 
 # ==========================================
 # KOORDINAT PRESISI INTAKE SWI PLTGU GRATI
+# Location: Inlet Canal Mouth / Jetty, Wates, Lekok, Pasuruan
+# Coordinates: -7.6531, 113.0289
 # ==========================================
 GRATI_LAT = -7.6531
 GRATI_LON = 113.0289
+
+# Titik Sampel Model Oseanografi Open-Meteo (~300m ke Laut Lepas)
 OCEAN_LAT = -7.6495
 OCEAN_LON = 113.0289
 
 
 # ==========================================
-# FUNGSI FETCH LIVE DATA (DENGAN CACHE TTL 60s)
+# FUNGSI FETCH LIVE DATA (REAL-TIME API)
 # ==========================================
-@st.cache_data(ttl=60, show_spinner=False)
 def get_live_ocean_data():
   try:
     # 1. API Weather & Wind
@@ -52,7 +55,7 @@ def get_live_ocean_data():
     res_w = req_w.json() if req_w.ok else {}
     wind_speed = res_w.get("current", {}).get("wind_speed_10m", 6.5)
 
-    # 2. API Marine / Oceanography
+    # 2. API Marine / Oceanography (SST & Current Velocity)
     url_marine = (
         f"https://marine-api.open-meteo.com/v1/marine?latitude={OCEAN_LAT}&longitude={OCEAN_LON}&current=sea_surface_temperature,ocean_current_velocity"
     )
@@ -69,11 +72,12 @@ def get_live_ocean_data():
     if current_speed is None:
       current_speed = 0.35
 
+    # Parameter Biogeokimia Pesisir
     salinity = 33.2
     chlorophyll = round(1.5 + (sst - 28.0) * 0.4, 2)
 
     return {
-        "status": "Success",
+        "status": "Success (Live Auto-Update 10s)",
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S WIB"),
         "sst": round(sst, 2),
         "salinity": salinity,
@@ -154,7 +158,7 @@ if data_source == "Live API (Real-Time)":
   chlorophyll = live_data["chlorophyll_a"]
   wind_speed = live_data["wind_speed"]
 
-  st.sidebar.success("⚡ Live Auto-Update (60s)")
+  st.sidebar.success("⚡ Live Refresh: 10 Detik")
   st.sidebar.info(f"Last Update: {live_data['timestamp']}")
 
 else:
@@ -210,10 +214,12 @@ with col_left:
 
   st.write("#### Probabilitas Tingkat Risiko:")
   st.progress(
-      float(probabilities[0]), text=f"Aman (Low): {probabilities[0]*100:.1f}%"
+      float(probabilities[0]),
+      text=f"Aman (Low): {probabilities[0]*100:.1f}%",
   )
   st.progress(
-      float(probabilities[1]), text=f"Waspada (Med): {probabilities[1]*100:.1f}%"
+      float(probabilities[1]),
+      text=f"Waspada (Med): {probabilities[1]*100:.1f}%",
   )
   st.progress(
       float(probabilities[2]),
@@ -224,8 +230,9 @@ with col_right:
   st.subheader("📍 Peta Satelit Intake SWI PLTGU Grati")
   st.caption(f"Lat: {GRATI_LAT}, Lon: {GRATI_LON}")
 
-  # Render Peta Satelit Google
+  # Peta Citra Satelit Google via Folium
   m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=16)
+
   google_satellite = folium.TileLayer(
       tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
       attr="Google Satellite",
@@ -242,6 +249,4 @@ with col_right:
       icon=folium.Icon(color="red", icon="info-sign"),
   ).add_to(m)
 
-  st_folium(
-      m, width=420, height=320, key="grati_map_presisi", returned_objects=[]
-  )
+  st_folium(m, width=420, height=320, key="grati_map_presisi")
