@@ -267,7 +267,6 @@ def train_high_precision_model():
     is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
     is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
 
-    # Bobot penilaian risiko disesuaikan agar batas pemicu lebih longgar
     risk_score = (
         (np.maximum(0, sst - 30.0) ** 1.8) * 2.2
         + (np.maximum(0, chlorophyll - 3.5) ** 1.5) * 2.8
@@ -281,7 +280,6 @@ def train_high_precision_model():
         + (tbs_torque * 0.08)
     )
 
-    # Threshold dinaikkan agar status tidak gampang berubah menjadi Waspada/Kritis
     labels = np.where(risk_score < 18.0, 0, np.where(risk_score < 32.0, 1, 2))
 
     df = pd.DataFrame({
@@ -326,8 +324,6 @@ model, train_df = train_high_precision_model()
 # ==========================================
 st.sidebar.header("🤖 JARVIS Control Panel")
 
-# Fitur Manual Override untuk Mengatasi False Alarm
-st.sidebar.subheader("🛠️ Operator Ground Truth Override")
 manual_override = st.sidebar.checkbox(
     "🚫 FORCE NORMAL (Verifikasi Lapangan: Nihil Ubur-ubur)",
     value=False,
@@ -443,7 +439,6 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-# Interupsi bila operator mengaktifkan Force Normal
 if manual_override:
     risk_class = 0
     probabilities = np.array([1.0, 0.0, 0.0])
@@ -487,7 +482,6 @@ if risk_class == 2:
     """
     components.html(sound_script, height=75)
 
-# Deklarasi Kolom Dashboard Utama
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
@@ -516,9 +510,13 @@ with col_status:
             <hr style="border-color:#ef4444; margin: 8px 0;">
             <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
             <span style="font-size:11px; color:#fca5a5;">
-            1. Jalankan TBS mode <b>Continuous High Speed</b>.<br>
+            1. Jalankan Revolving screen/TBS mode <b>Continuous High Speed</b>.<br>
             2. Aktifkan Screen Wash Pump Pressure Max.<br>
-            3. Siapkan derating jika ΔP > 0.80 mWC.
+            3. Manual running debris filter condensor.<br>
+            4. Pengamatan DP all strainer cooling system.<br>
+            5. Optimalkan pengaturan valve outlet kondensor.<br>
+            6. Amati vacuum condensor.<br>
+            7. Siapkan derating jika ΔP > 0.80 mWC.
             </span>
         </div>
         """,
@@ -553,7 +551,6 @@ with col_status:
 with col_gauge:
     st.markdown("#### 🎯 Threat Risk Index")
     
-    # Pengaturan persentase dan warna gauge dibuat lebih longgar
     if risk_class == 2:
         gauge_color = "#ef4444"
         display_score = probabilities[2] * 100
@@ -575,7 +572,6 @@ with col_gauge:
                 "bgcolor": "#1a2332",
                 "bordercolor": "#2e3b4e",
                 "steps": [
-                    # Ambang batas longgar (0-70% Normal/Hijau)
                     {"range": [0, 70], "color": "rgba(16, 185, 129, 0.2)"},
                     {"range": [70, 85], "color": "rgba(245, 158, 11, 0.2)"},
                     {"range": [85, 100], "color": "rgba(239, 68, 68, 0.2)"},
