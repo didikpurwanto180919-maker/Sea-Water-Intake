@@ -136,9 +136,11 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-# Titik Akurat PLTGU Grati (Konversi: S7°38.551' -> -7.642517, E113°01.643' -> 113.027383)
-GRATI_LAT, GRATI_LON = -7.642517, 113.027383
-OCEAN_LAT, OCEAN_LON = -7.639183, 113.027383
+# Konversi S7°38.659' E113°01.641' ke Decimal Degrees
+# Lat = -(7 + 38.659/60) = -7.644317
+# Lon = 113 + 1.641/60 = 113.027350
+GRATI_LAT, GRATI_LON = -7.644317, 113.027350
+OCEAN_LAT, OCEAN_LON = -7.641000, 113.027350  # Titik Pantau Oceanografi (~370 meter dari intake)
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -566,18 +568,18 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # Titik Intake Presisi PLTGU Grati (S7°38.551' E113°01.643')
+    # CircleMarker Titik Lokasi Utama Intake PLTGU Grati (S7°38.659' E113°01.641')
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
         radius=8,
-        popup="SWI Intake PLTGU Grati (S7°38.551' E113°01.643')",
+        popup="SWI Intake PLTGU Grati (S 7°38.659' E 113°01.641')",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
         fill_opacity=0.9,
     ).add_to(m)
 
-    # Titik Oceanografi Off-Shore Selat Madura
+    # Titik Pantau Oceanografi lepas pantai
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
@@ -588,7 +590,7 @@ with col_map:
         fill_opacity=0.8,
     ).add_to(m)
 
-    # Vektor Trajektori Arus Ke Intake
+    # Vektor Pergerakan Arus Laut ke Intake
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
