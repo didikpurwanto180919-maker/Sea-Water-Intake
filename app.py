@@ -136,8 +136,9 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-GRATI_LAT, GRATI_LON = -7.6433, 113.0238
-OCEAN_LAT, OCEAN_LON = -7.6400, 113.0238
+# KOORDINAT PRESISI AKURAT (Intake SWI PLTGU Grati Selat Madura)
+GRATI_LAT, GRATI_LON = -7.6080, 113.0135
+OCEAN_LAT, OCEAN_LON = -7.6010, 113.0135
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -403,7 +404,7 @@ else:
         "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
-# Executive Header (Updated with JARVIS Brand)
+# Executive Header
 st.markdown(
     f"""
 <div class="executive-header">
@@ -432,7 +433,7 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-DISTANCE_TO_INTAKE_M = 400.0  
+DISTANCE_TO_INTAKE_M = 780.0  
 eff_speed = max(data["current_speed"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
 eta_minutes = int(time_seconds / 60)
@@ -557,7 +558,7 @@ with col_gauge:
 
 with col_map:
     st.markdown("#### 📍 SWI Intake Grid Map & Flow Vector")
-    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=14)
+    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=15)
     folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
         attr="Google Satellite",
@@ -565,27 +566,29 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # CircleMarker untuk rendering stabil pada SCADA UI
+    # Titik Presisi Intake SWI PLTGU Grati
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
-        radius=8,
-        popup="SWI Intake PLTGU Grati",
+        radius=9,
+        popup="SWI Intake PLTGU Grati (Lat: -7.6080, Lon: 113.0135)",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
         fill_opacity=0.9,
     ).add_to(m)
 
+    # Titik Pemantauan Oceanografi Offshore
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
-        popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
+        popup=f"Titik Pantau Oceanografi Offshore (Arus: {data['current_speed']} m/s)",
         color="#00d2ff",
         fill=True,
         fill_color="#00d2ff",
         fill_opacity=0.8,
     ).add_to(m)
 
+    # Trajektori Arus Menuju Intake
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
@@ -603,7 +606,6 @@ st.markdown("---")
 # ==========================================
 st.markdown("### 🗓️ Prediksi Musiman & Tren Bulanan Kedatangan Ubur-Ubur (Selat Madura)")
 
-# Data historis probabilitas bloom tahunan Selat Madura (Grati)
 monthly_risk_scores = [15, 20, 35, 85, 92, 78, 40, 25, 30, 65, 88, 50] 
 curr_month_idx = data["raw_datetime"].month - 1
 curr_month_name = MONTH_NAMES[curr_month_idx]
