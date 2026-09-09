@@ -136,9 +136,10 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (Berdasarkan Google Maps)
-GRATI_LAT, GRATI_LON = -7.6041, 113.0139
-OCEAN_LAT, OCEAN_LON = -7.6005, 113.0139  # Titik Pantau Lepas Pantai (~400m dari Intake)
+# Koordinat Presisi Intake PLTGU Grati (LS 7° 38' 38.38" & BT 113° 01' 25.45")
+GRATI_LAT, GRATI_LON = -7.643993, 113.023737
+# Titik Pantau Oceanografi lepas pantai Selat Madura (Offset ~400 meter ke arah utara laut)
+OCEAN_LAT, OCEAN_LON = -7.640393, 113.023737
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -472,7 +473,7 @@ if risk_class == 2:
     """
     components.html(sound_script, height=75)
 
-# Status Alarm & Gauge Chart
+# Status Alarm, Gauge Chart & Peta Lokasi Presisi
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
@@ -566,18 +567,18 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # CircleMarker SWI Intake
+    # Titik Lokasi Presisi Intake PLTGU Grati (LS 7° 38' 38.38" / BT 113° 01' 25.45")
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
         radius=8,
-        popup="SWI Intake PLTGU Grati",
+        popup="SWI Intake PLTGU Grati (7° 38' 38.38\" S, 113° 01' 25.45\" E)",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
         fill_opacity=0.9,
     ).add_to(m)
 
-    # CircleMarker Titik Pantau Oceanografi
+    # Titik Pantau Oceanografi lepas pantai Selat Madura
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
@@ -588,7 +589,7 @@ with col_map:
         fill_opacity=0.8,
     ).add_to(m)
 
-    # Garis Vektor Pergerakan Arus
+    # Vektor Pergerakan Arus
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
