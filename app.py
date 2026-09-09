@@ -136,10 +136,10 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-# Koordinat Presisi Intake PLTGU Grati (LS 7° 38' 38.38" & BT 113° 01' 25.45")
-GRATI_LAT, GRATI_LON = -7.643993, 113.023737
-# Titik Pantau Oceanografi lepas pantai Selat Madura (Offset ~400 meter ke arah utara laut)
-OCEAN_LAT, OCEAN_LON = -7.640393, 113.023737
+# Titik Koordinat Presisi Intake PLTGU Grati (Lekok/Grati, Pasuruan)
+GRATI_LAT, GRATI_LON = -7.6368, 112.9992
+# Titik Pantau Oceanografi (Lepas Pantai Selat Madura menuju Intake)
+OCEAN_LAT, OCEAN_LON = -7.6250, 112.9992
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -434,7 +434,7 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-DISTANCE_TO_INTAKE_M = 400.0  
+DISTANCE_TO_INTAKE_M = 1300.0  # Jarak aktual titik acuan laut ke mulut intake canal (~1.3 km)
 eff_speed = max(data["current_speed"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
 eta_minutes = int(time_seconds / 60)
@@ -473,7 +473,7 @@ if risk_class == 2:
     """
     components.html(sound_script, height=75)
 
-# Status Alarm, Gauge Chart & Peta Lokasi Presisi
+# Status Alarm & Gauge Chart
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
@@ -559,7 +559,7 @@ with col_gauge:
 
 with col_map:
     st.markdown("#### 📍 SWI Intake Grid Map & Flow Vector")
-    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=15)
+    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=14)
     folium.TileLayer(
         tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
         attr="Google Satellite",
@@ -567,18 +567,18 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # Titik Lokasi Presisi Intake PLTGU Grati (LS 7° 38' 38.38" / BT 113° 01' 25.45")
+    # CircleMarker Titik Intake Presisi PLTGU Grati
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
         radius=8,
-        popup="SWI Intake PLTGU Grati (7° 38' 38.38\" S, 113° 01' 25.45\" E)",
+        popup="SWI Intake PLTGU Grati (Lekok/Grati)",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
         fill_opacity=0.9,
     ).add_to(m)
 
-    # Titik Pantau Oceanografi lepas pantai Selat Madura
+    # CircleMarker Titik Pantau Oceanografi Lepas Pantai
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
@@ -589,13 +589,13 @@ with col_map:
         fill_opacity=0.8,
     ).add_to(m)
 
-    # Vektor Pergerakan Arus
+    # Trajektori Arus Vektor ke Intake
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
         weight=2.5,
         dash_array="5, 10",
-        popup=f"Trajektori Pergerakan (ETA: ~{eta_minutes} Menit)"
+        popup=f"Trajektori Pergerakan Arus (ETA: ~{eta_minutes} Menit)"
     ).add_to(m)
 
     st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
