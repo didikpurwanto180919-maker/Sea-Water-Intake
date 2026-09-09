@@ -136,9 +136,9 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-# Perbaikan Koordinat Akurat Intake SWI PLTGU Grati
-GRATI_LAT, GRATI_LON = -7.6531, 113.0289
-OCEAN_LAT, OCEAN_LON = -7.6498, 113.0289
+# Titik Akurat PLTGU Grati (Konversi: S7°38.551' -> -7.642517, E113°01.643' -> 113.027383)
+GRATI_LAT, GRATI_LON = -7.642517, 113.027383
+OCEAN_LAT, OCEAN_LON = -7.639183, 113.027383
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -433,7 +433,7 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-DISTANCE_TO_INTAKE_M = 400.0  
+DISTANCE_TO_INTAKE_M = 370.0  
 eff_speed = max(data["current_speed"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
 eta_minutes = int(time_seconds / 60)
@@ -566,18 +566,18 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # Titik Presisi SWI Intake PLTGU Grati
+    # Titik Intake Presisi PLTGU Grati (S7°38.551' E113°01.643')
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
         radius=8,
-        popup="SWI Intake PLTGU Grati (-7.6531, 113.0289)",
+        popup="SWI Intake PLTGU Grati (S7°38.551' E113°01.643')",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
         fill_opacity=0.9,
     ).add_to(m)
 
-    # Titik Pantau Oceanografi lepas pantai
+    # Titik Oceanografi Off-Shore Selat Madura
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
@@ -588,7 +588,7 @@ with col_map:
         fill_opacity=0.8,
     ).add_to(m)
 
-    # Vektor Pergerakan Arus
+    # Vektor Trajektori Arus Ke Intake
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
