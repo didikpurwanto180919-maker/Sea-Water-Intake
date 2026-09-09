@@ -323,6 +323,15 @@ model, train_df = train_high_precision_model()
 # 4. SIDEBAR & INPUT SELECTION
 # ==========================================
 st.sidebar.header("🤖 JARVIS Control Panel")
+
+# Fitur Manual Override untuk Mengatasi False Alarm
+st.sidebar.subheader("🛠️ Operator Ground Truth Override")
+manual_override = st.sidebar.checkbox(
+    "🚫 FORCE NORMAL (Verifikasi Lapangan: Nihil Ubur-ubur)",
+    value=False,
+    help="Centang jika pengamatan visual operator mengonfirmasi tidak ada ubur-ubur di kanal intake."
+)
+
 mode_input = st.sidebar.radio(
     "Sumber Input Data:",
     ("⚡ Real-Time API (Selat Madura)", "🧪 Skenario Simulasi Manual"),
@@ -432,6 +441,11 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
+# Interupsi bila operator mengaktifkan Force Normal
+if manual_override:
+    risk_class = 0
+    probabilities = np.array([1.0, 0.0, 0.0])
+
 DISTANCE_TO_INTAKE_M = 370.0  
 eff_speed = max(data["current_speed"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
@@ -476,7 +490,17 @@ col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
     st.markdown("#### 🚨 Early Warning Alarm Status")
-    if risk_class == 2:
+    if manual_override:
+        st.markdown(
+            """
+        <div class="status-box-safe">
+            <h3 style="margin:0; color:#10b981; font-weight:800; font-size:16px;">🟢 FORCE NORMAL: OVERRIDE OPERATOR SHIFT</h3>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:0;">Verifikasi lapangan dikonfirmasi: Nihil penumpukan ubur-ubur di kanal intake SWI. Sinyal indikasi model telah dinonaktifkan secara manual.</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    elif risk_class == 2:
         st.markdown(
             f"""
         <div class="status-box-danger">
@@ -527,7 +551,6 @@ with col_status:
 with col_gauge:
     st.markdown("#### 🎯 Threat Risk Index")
     
-    # Sinkronisasi warna & persentase akumulasi risiko
     if risk_class == 2:
         gauge_color = "#ef4444"
         display_score = probabilities[2] * 100
@@ -536,7 +559,7 @@ with col_gauge:
         display_score = (probabilities[1] + probabilities[2]) * 100
     else:
         gauge_color = "#10b981"
-        display_score = (1 - probabilities[0]) * 100
+        display_score = 0.0 if manual_override else (1 - probabilities[0]) * 100
 
     fig_gauge = go.Figure(
         go.Indicator(
