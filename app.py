@@ -136,9 +136,9 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-# KOORDINAT PRESISI INTAKE CANAL & TITIK PANTAU SELAT MADURA
-GRATI_LAT, GRATI_LON = -7.307778, 112.994444
-OCEAN_LAT, OCEAN_LON = -7.303500, 112.994444  # ~400 meter ke arah laut Selat Madura
+# Perbaikan Koordinat Akurat Intake SWI PLTGU Grati
+GRATI_LAT, GRATI_LON = -7.6531, 113.0289
+OCEAN_LAT, OCEAN_LON = -7.6498, 113.0289
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -404,7 +404,7 @@ else:
         "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
-# Executive Header (JARVIS Brand)
+# Executive Header
 st.markdown(
     f"""
 <div class="executive-header">
@@ -566,35 +566,35 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # CircleMarker untuk titik Intake Kanal PLTGU Grati (7°18'28"S 112°59'40"E)
+    # Titik Presisi SWI Intake PLTGU Grati
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
         radius=8,
-        popup="Kanal Intake SWI PLTGU Grati (-7.307778, 112.994444)",
+        popup="SWI Intake PLTGU Grati (-7.6531, 113.0289)",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
         fill_opacity=0.9,
     ).add_to(m)
 
-    # CircleMarker untuk Titik Pantau Oceanografi Lepas Pantai
+    # Titik Pantau Oceanografi lepas pantai
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
-        popup=f"Titik Pantau Oceanografi Selat Madura (Kecepatan Arus: {data['current_speed']} m/s)",
+        popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
         color="#00d2ff",
         fill=True,
         fill_color="#00d2ff",
         fill_opacity=0.8,
     ).add_to(m)
 
-    # Trajektori Arus Laut menuju Intake
+    # Vektor Pergerakan Arus
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
         weight=2.5,
         dash_array="5, 10",
-        popup=f"Trajektori Pergerakan Arus (ETA: ~{eta_minutes} Menit)"
+        popup=f"Trajektori Pergerakan (ETA: ~{eta_minutes} Menit)"
     ).add_to(m)
 
     st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
