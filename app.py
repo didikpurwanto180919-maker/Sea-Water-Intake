@@ -225,7 +225,7 @@ with col_head1:
         <h3 style="margin:0; color:white;">STATUS ANCAMAN INTAKE: {status_text}</h3>
         <p style="margin:5px 0 0 0; font-size:14px;">Indeks Risiko Bloom Ubur-Ubur: {probs[risk_class]*100:.1f}% Confidence</p>
     </div>
-    """, unsafe_unsafe_javascript=True if False else True)
+    """, unsafe_allow_html=True)
 
 with col_head2:
     st.metric("Sea Surface Temp", f"{input_sst} °C", delta=f"{round(input_sst - 28.5, 1)} °C vs Normal")
@@ -339,7 +339,7 @@ if risk_class == 2:
     ### 🔴 TINDAKAN MANDATORI - STATUS KRITIS (DANGER)
     1. **Aktifkan Mesh Net / Barrier Net:** Segera instruksikan tim Marine/Intake untuk membentangkan *Jellyfish Blocking Net* di mulut kanal luar.
     2. **Operasikan Continuous Trash Rake (CTR):** Ubah mode operasi *Trash Rake Machine* dari Otomatis-Periodic menjadi **Continuous Running 100% Speed**.
-    3. **Persiapan Manual Screen Cleaning:** Standby-kan tim pemeliharaan untuk pembersihan manual Bar Screen Intake jika $DP > 25\text{ kPa}$.
+    3. **Persiapan Manual Screen Cleaning:** Standby-kan tim pemeliharaan untuk pembersihan manual Bar Screen Intake jika DP > 25 kPa.
     4. **Monitoring Beban Pembangkit:** Evaluasi penurunan beban (*derating*) blok CCPP jika tekanan inlet *CWP (Circulating Water Pump)* turun di bawah ambang batas Trip.
     """)
 elif risk_class == 1:
