@@ -12,7 +12,7 @@ from streamlit_folium import st_folium
 from xgboost import XGBClassifier
 
 # ==========================================
-# 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI (JARVIS THEME)
+# 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
     page_title="JARVIS - Early Warning Serangan Ubur-Ubur SWI PLTGU Grati",
@@ -25,58 +25,58 @@ st.markdown(
     """
 <style>
     .stApp {
-        background-color: #0b132b;
+        background-color: #0e1726;
         color: #e0e6ed;
     }
     .executive-header {
-        background: linear-gradient(90deg, #1c2541 0%, #0b132b 100%);
-        border-left: 6px solid #00f0ff;
+        background: linear-gradient(90deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        border-left: 6px solid #00d2ff;
+        border-right: 2px solid rgba(0, 210, 255, 0.3);
         padding: 18px 25px;
         border-radius: 10px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0, 240, 255, 0.15);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     .executive-title {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 800;
         color: #ffffff;
-        letter-spacing: 1px;
+        letter-spacing: 0.8px;
         margin: 0;
     }
     .executive-subtitle {
-        font-size: 13px;
-        color: #00f0ff;
+        font-size: 12px;
+        color: #00d2ff;
         margin-top: 5px;
         font-weight: 600;
         letter-spacing: 0.5px;
     }
     .realtime-badge {
-        background: rgba(0, 240, 255, 0.15);
-        border: 1px solid #00f0ff;
-        color: #00f0ff;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid #10b981;
+        color: #10b981;
         padding: 6px 14px;
         border-radius: 20px;
         font-weight: bold;
-        font-size: 11px;
+        font-size: 12px;
         display: inline-block;
-        letter-spacing: 0.5px;
     }
     .pillar-card {
-        background-color: #1c2541;
-        border: 1px solid #3a506b;
+        background-color: #1a2332;
+        border: 1px solid #2e3b4e;
         border-radius: 12px;
         padding: 15px;
         margin-bottom: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     .pillar-title {
         font-size: 12px;
         font-weight: 700;
-        color: #00f0ff;
+        color: #00d2ff;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 12px;
-        border-bottom: 1px solid #3a506b;
+        border-bottom: 1px solid #2e3b4e;
         padding-bottom: 6px;
     }
     .metric-value {
@@ -112,8 +112,8 @@ st.markdown(
         animation: blinker 1.5s linear infinite;
     }
     .eta-box {
-        background: rgba(0, 240, 255, 0.1);
-        border: 1px solid #00f0ff;
+        background: rgba(0, 210, 255, 0.1);
+        border: 1px solid #00d2ff;
         border-radius: 8px;
         padding: 10px 14px;
         margin-top: 10px;
@@ -133,7 +133,7 @@ REFRESH_INTERVAL_SEC = 60
 count = st_autorefresh(
     interval=REFRESH_INTERVAL_SEC * 1000,
     limit=None,
-    key="jarvis_auto_refresh",
+    key="jellyfish_auto_refresh",
 )
 
 GRATI_LAT, GRATI_LON = -7.6433, 113.0238
@@ -238,7 +238,7 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
 
 
 # ==========================================
-# 3. MACHINE LEARNING MODEL (JARVIS ENGINE)
+# 3. MACHINE LEARNING MODEL
 # ==========================================
 @st.cache_resource
 def train_high_precision_model():
@@ -336,7 +336,7 @@ if mode_input == "⚡ Real-Time API (Selat Madura)":
     )
 else:
     preset = st.sidebar.selectbox(
-        "Skenario Pengujian JARVIS:",
+        "Skenario Pengujian:",
         (
             "🚨 KRITIS: SERANGAN UBUR-UBUR Massal",
             "⚠️ WASPADA: Indikasi Penumpukan",
@@ -403,14 +403,14 @@ else:
         "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
-# Executive Header JARVIS
+# Executive Header (Updated with JARVIS Brand)
 st.markdown(
     f"""
 <div class="executive-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="executive-title">🤖 JARVIS (Jellyfish Alert Real-time Vigilance Intelligence System)</div>
-            <div class="executive-subtitle">EARLY WARNING COMMAND CENTER — SWI PLTGU GRATI | SELAT MADURA (XGBoost v3.4)</div>
+            <div class="executive-title">🤖 JARVIS PLTGU GRATI BERBASIS MACHINE LEARNING</div>
+            <div class="executive-subtitle">JELLYFISH ALERT REAL-TIME VIGILANCE INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
             <div class="realtime-badge">🔄 AUTO REFRESH: 1 MENIT</div>
@@ -445,7 +445,7 @@ eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
 if risk_class == 2:
     sound_script = """
     <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
-        <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🚨 JARVIS ALERT: SIRINE DARURAT DIAKTIFKAN</span><br>
+        <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🔔 SIRINE DARURAT DIAKTIFKAN</span><br>
         <button onclick="playAlarm()" style="background:#ef4444; color:white; border:none; padding:4px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:4px;">🔊 Mainkan Suara Alarm</button>
     </div>
     <audio id="alarm_audio" loop preload="auto">
@@ -475,7 +475,7 @@ if risk_class == 2:
 col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
 
 with col_status:
-    st.markdown("#### 🚨 JARVIS Alarm Status")
+    st.markdown("#### 🚨 Early Warning Alarm Status")
     if risk_class == 2:
         st.markdown(
             f"""
@@ -484,7 +484,7 @@ with col_status:
             <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:8px;">Potensi penyumbatan massal pada Bar Screen & CWP condenser intake.</p>
             <div class="eta-box">
                 <span style="color:#94a3b8; font-size:11px;">⏱️ ESTIMASI KEDATANGAN UBUR-UBUR (ETA):</span><br>
-                <b style="color:#00f0ff; font-size:18px;">Pukul {eta_time_str}</b> 
+                <b style="color:#00d2ff; font-size:18px;">Pukul {eta_time_str}</b> 
                 <span style="color:#fca5a5; font-size:12px;">(~{eta_minutes} Menit lagi)</span>
             </div>
             <hr style="border-color:#ef4444; margin: 8px 0;">
@@ -506,7 +506,7 @@ with col_status:
             <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:8px;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal.</p>
             <div class="eta-box">
                 <span style="color:#94a3b8; font-size:11px;">⏱️ ESTIMASI PENUMPUKAN DARI POINT OF INTEREST:</span><br>
-                <b style="color:#00f0ff; font-size:16px;">Pukul {eta_time_str}</b> 
+                <b style="color:#00d2ff; font-size:16px;">Pukul {eta_time_str}</b> 
                 <span style="color:#fbbf24; font-size:12px;">(~{eta_minutes} Menit)</span>
             </div>
         </div>
@@ -537,8 +537,8 @@ with col_gauge:
             gauge={
                 "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#ffffff"},
                 "bar": {"color": gauge_color},
-                "bgcolor": "#1c2541",
-                "bordercolor": "#3a506b",
+                "bgcolor": "#1a2332",
+                "bordercolor": "#2e3b4e",
                 "steps": [
                     {"range": [0, 30], "color": "rgba(16, 185, 129, 0.2)"},
                     {"range": [30, 70], "color": "rgba(245, 158, 11, 0.2)"},
@@ -565,6 +565,7 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
+    # CircleMarker untuk rendering stabil pada SCADA UI
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
         radius=8,
@@ -579,21 +580,21 @@ with col_map:
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
         popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
-        color="#00f0ff",
+        color="#00d2ff",
         fill=True,
-        fill_color="#00f0ff",
+        fill_color="#00d2ff",
         fill_opacity=0.8,
     ).add_to(m)
 
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
-        color="#00f0ff",
+        color="#00d2ff",
         weight=2.5,
         dash_array="5, 10",
         popup=f"Trajektori Pergerakan (ETA: ~{eta_minutes} Menit)"
     ).add_to(m)
 
-    st_folium(m, width="100%", height=170, key="jarvis_grati_map", returned_objects=[])
+    st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
 
 st.markdown("---")
 
@@ -602,6 +603,7 @@ st.markdown("---")
 # ==========================================
 st.markdown("### 🗓️ Prediksi Musiman & Tren Bulanan Kedatangan Ubur-Ubur (Selat Madura)")
 
+# Data historis probabilitas bloom tahunan Selat Madura (Grati)
 monthly_risk_scores = [15, 20, 35, 85, 92, 78, 40, 25, 30, 65, 88, 50] 
 curr_month_idx = data["raw_datetime"].month - 1
 curr_month_name = MONTH_NAMES[curr_month_idx]
@@ -616,7 +618,7 @@ with m_col1:
     <div class="pillar-card" style="height: 250px;">
         <div class="pillar-title">📊 Ringkasan Musim Bloom</div>
         <div class="metric-label">Bulan Saat Ini</div>
-        <div class="metric-value" style="color:#00f0ff;">{curr_month_name}</div>
+        <div class="metric-value" style="color:#00d2ff;">{curr_month_name}</div>
         <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Tingkat Risiko Histori: <b style="color:#ffffff;">{curr_month_risk}%</b></div>
         <br>
         <div class="metric-label">Puncak Musim Serangan (Peak Bloom)</div>
@@ -649,7 +651,7 @@ with m_col2:
         x=curr_month_idx,
         line_width=2,
         line_dash="dash",
-        line_color="#00f0ff",
+        line_color="#00d2ff",
         annotation_text="Bulan Ini",
         annotation_position="top left",
     )
@@ -657,7 +659,7 @@ with m_col2:
     fig_month.update_layout(
         height=250,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#1c2541",
+        plot_bgcolor="#1a2332",
         font=dict(color="#94a3b8"),
         margin=dict(l=10, r=10, t=25, b=10),
         yaxis=dict(title="Potensi Bloom (%)", range=[0, 100]),
@@ -780,7 +782,7 @@ with c_graph1:
             x=times,
             y=sst_trend,
             name="SST (°C)",
-            line=dict(color="#00f0ff", width=2, dash="dash"),
+            line=dict(color="#00d2ff", width=2, dash="dash"),
             yaxis="y2",
         )
     )
@@ -788,19 +790,19 @@ with c_graph1:
     fig_trend.update_layout(
         height=260,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#1c2541",
+        plot_bgcolor="#1a2332",
         font=dict(color="#94a3b8"),
         margin=dict(l=10, r=10, t=10, b=10),
         yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
         yaxis2=dict(
-            title="SST (°C)", color="#00f0ff", overlaying="y", side="right"
+            title="SST (°C)", color="#00d2ff", overlaying="y", side="right"
         ),
         legend=dict(orientation="h", y=1.1),
     )
     st.plotly_chart(fig_trend, use_container_width=True)
 
 with c_graph2:
-    st.markdown("#### 🧠 JARVIS Explainable AI: Parameter Pemicu Utama (Feature Importance)")
+    st.markdown("#### 🧠 Explainable AI: Parameter Pemicu Utama (Feature Importance)")
     importance = model.feature_importances_
     features = input_df.columns
     df_imp = (
@@ -814,13 +816,13 @@ with c_graph2:
             x=df_imp["Importance"],
             y=df_imp["Feature"],
             orientation="h",
-            marker=dict(color="#00f0ff"),
+            marker=dict(color="#00d2ff"),
         )
     )
     fig_imp.update_layout(
         height=260,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#1c2541",
+        plot_bgcolor="#1a2332",
         font=dict(color="#94a3b8"),
         margin=dict(l=10, r=10, t=10, b=10),
     )
