@@ -136,10 +136,9 @@ count = st_autorefresh(
     key="jellyfish_auto_refresh",
 )
 
-# KOORDINAT PRESISI SESUAI GOOGLE MAPS INTAKE PLTGU GRATI
-GRATI_LAT, GRATI_LON = -7.618683, 113.011681
-# Titik Pantau Lepas Pantai Selat Madura (±850m ke arah utara laut)
-OCEAN_LAT, OCEAN_LON = -7.611000, 113.011681
+# KOORDINAT PRESISI SWI INTAKE PLTGU GRATI (Berdasarkan Google Maps)
+GRATI_LAT, GRATI_LON = -7.6041, 113.0139
+OCEAN_LAT, OCEAN_LON = -7.6005, 113.0139  # Titik Pantau Lepas Pantai (~400m dari Intake)
 
 FEATURE_COLUMNS = [
     "sst", "chlorophyll_a", "salinity", "do_level", "turbidity",
@@ -434,8 +433,7 @@ input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
 risk_class = int(model.predict(input_df)[0])
 probabilities = model.predict_proba(input_df)[0]
 
-# Jarak relatif dari titik pantau oceanografi ke Intake canal (~850m)
-DISTANCE_TO_INTAKE_M = 850.0  
+DISTANCE_TO_INTAKE_M = 400.0  
 eff_speed = max(data["current_speed"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
 eta_minutes = int(time_seconds / 60)
@@ -568,11 +566,11 @@ with col_map:
 
     hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
     
-    # CircleMarker Titik SWI Intake PLTGU Grati (Persis Sesuai Google Maps)
+    # CircleMarker SWI Intake
     folium.CircleMarker(
         location=[GRATI_LAT, GRATI_LON],
-        radius=9,
-        popup="SWI Intake PLTGU Grati (-7.618683, 113.011681)",
+        radius=8,
+        popup="SWI Intake PLTGU Grati",
         color=hex_color,
         fill=True,
         fill_color=hex_color,
@@ -583,14 +581,14 @@ with col_map:
     folium.CircleMarker(
         location=[OCEAN_LAT, OCEAN_LON],
         radius=6,
-        popup=f"Titik Pantau Oceanografi Lepas Pantai (Kecepatan Arus: {data['current_speed']} m/s)",
+        popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
         color="#00d2ff",
         fill=True,
         fill_color="#00d2ff",
         fill_opacity=0.8,
     ).add_to(m)
 
-    # Trajektori Arus Vektor
+    # Garis Vektor Pergerakan Arus
     folium.PolyLine(
         locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
         color="#00d2ff",
