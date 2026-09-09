@@ -267,6 +267,7 @@ def train_high_precision_model():
     is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
     is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
 
+    # Bobot penilaian risiko disesuaikan agar batas pemicu lebih longgar
     risk_score = (
         (np.maximum(0, sst - 30.0) ** 1.8) * 2.2
         + (np.maximum(0, chlorophyll - 3.5) ** 1.5) * 2.8
@@ -280,7 +281,8 @@ def train_high_precision_model():
         + (tbs_torque * 0.08)
     )
 
-    labels = np.where(risk_score < 14.0, 0, np.where(risk_score < 28.0, 1, 2))
+    # Threshold dinaikkan agar status tidak gampang berubah menjadi Waspada/Kritis
+    labels = np.where(risk_score < 18.0, 0, np.where(risk_score < 32.0, 1, 2))
 
     df = pd.DataFrame({
         "sst": sst,
@@ -551,12 +553,13 @@ with col_status:
 with col_gauge:
     st.markdown("#### 🎯 Threat Risk Index")
     
+    # Pengaturan persentase dan warna gauge dibuat lebih longgar
     if risk_class == 2:
         gauge_color = "#ef4444"
         display_score = probabilities[2] * 100
     elif risk_class == 1:
         gauge_color = "#f59e0b"
-        display_score = (probabilities[1] + probabilities[2]) * 100
+        display_score = probabilities[1] * 100
     else:
         gauge_color = "#10b981"
         display_score = 0.0 if manual_override else (1 - probabilities[0]) * 100
@@ -572,9 +575,10 @@ with col_gauge:
                 "bgcolor": "#1a2332",
                 "bordercolor": "#2e3b4e",
                 "steps": [
-                    {"range": [0, 30], "color": "rgba(16, 185, 129, 0.2)"},
-                    {"range": [30, 70], "color": "rgba(245, 158, 11, 0.2)"},
-                    {"range": [70, 100], "color": "rgba(239, 68, 68, 0.2)"},
+                    # Ambang batas longgar (0-70% Normal/Hijau)
+                    {"range": [0, 70], "color": "rgba(16, 185, 129, 0.2)"},
+                    {"range": [70, 85], "color": "rgba(245, 158, 11, 0.2)"},
+                    {"range": [85, 100], "color": "rgba(239, 68, 68, 0.2)"},
                 ],
             },
         )
@@ -663,7 +667,7 @@ with m_col1:
 
 with m_col2:
     colors = [
-        "#ef4444" if score >= 70 else ("#f59e0b" if score >= 40 else "#10b981")
+        "#ef4444" if score >= 85 else ("#f59e0b" if score >= 70 else "#10b981")
         for score in monthly_risk_scores
     ]
     
