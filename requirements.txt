@@ -1,9 +1,10 @@
 streamlit
-pandas
 numpy
-xgboost
-requests
+pandas
 plotly
+requests
+beautifulsoup4
 folium
 streamlit-folium
 streamlit-autorefresh
+xgboost
