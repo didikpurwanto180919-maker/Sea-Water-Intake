@@ -510,13 +510,14 @@ with col_status:
             <hr style="border-color:#ef4444; margin: 8px 0;">
             <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
             <span style="font-size:11px; color:#fca5a5;">
-            1. Jalankan Revolving screen/TBS mode <b>Continuous High Speed</b>.<br>
-            2. Aktifkan Screen Wash Pump Pressure Max.<br>
-            3. Manual running debris filter condensor.<br>
-            4. Pengamatan DP all strainer cooling system.<br>
-            5. Optimalkan pengaturan valve outlet kondensor.<br>
-            6. Amati vacuum condensor.<br>
-            7. Siapkan derating jika ΔP > 0.80 mWC.
+            1. Persiapan Pengoperasian MARVEL.<br>
+            2. Jalankan Revolving screen/TBS mode <b>Continuous High Speed</b>.<br>
+            3. Aktifkan Screen Wash Pump Pressure Max.<br>
+            4. Manual running debris filter condensor.<br>
+            5. Pengamatan DP all strainer cooling system.<br>
+            6. Optimalkan pengaturan valve outlet kondensor.<br>
+            7. Amati vacuum condensor.<br>
+            8. Siapkan derating jika ΔP > 0.80 mWC.
             </span>
         </div>
         """,
