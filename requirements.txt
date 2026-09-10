@@ -3,7 +3,7 @@ numpy
 pandas
 plotly
 requests
-beautifulsoup4
+bs4
 folium
 streamlit-folium
 streamlit-autorefresh
