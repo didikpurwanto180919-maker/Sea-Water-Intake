@@ -9,4 +9,3 @@ folium
 streamlit-folium
 streamlit-autorefresh
 xgboost
-scikit-learn
