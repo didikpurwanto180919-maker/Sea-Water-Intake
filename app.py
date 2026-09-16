@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="JELLY-MARVEL Intelligence System - PLTGU Grati",
+    page_title="JELLY-MARVEL Intelligence SYSTEM PLTGU GRATI Berbasis Machine Learning",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -38,7 +38,7 @@ st.markdown(
         box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     .executive-title {
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 800;
         color: #ffffff;
         letter-spacing: 0.8px;
@@ -416,7 +416,7 @@ st.markdown(
 <div class="executive-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="executive-title">🤖 JELLY-MARVEL INTELLIGENCE SYSTEM PLTGU GRATI</div>
+            <div class="executive-title">🤖 JELLY-MARVEL Intelligence SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
             <div class="executive-subtitle">JELLYFISH EARLY-WARNING & MODULAR CONVEYOR INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
