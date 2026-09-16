@@ -595,7 +595,6 @@ current_dt = data["raw_datetime"]
 eta_dt = current_dt + datetime.timedelta(minutes=eta_minutes)
 eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
 
-# Modul Audio Alarm
 if risk_class == 2:
   sound_script = """
     <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
@@ -1014,26 +1013,15 @@ with c_graph1:
       )
   )
 
-  # PERBAIKAN: Konfigurasi legend yang jelas dengan background kontras & teks putih
   fig_trend.update_layout(
       height=260,
       paper_bgcolor="rgba(0,0,0,0)",
       plot_bgcolor="#1a2332",
-      font=dict(color="#e0e6ed"),
-      margin=dict(l=10, r=10, t=35, b=10),
+      font=dict(color="#94a3b8"),
+      margin=dict(l=10, r=10, t=10, b=10),
       yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
       yaxis2=dict(title="SST (°C)", color="#00d2ff", overlaying="y", side="right"),
-      legend=dict(
-          orientation="h",
-          yanchor="bottom",
-          y=1.05,
-          xanchor="right",
-          x=1,
-          bgcolor="rgba(15, 23, 42, 0.9)",
-          bordercolor="#00d2ff",
-          borderwidth=1,
-          font=dict(color="#ffffff", size=11, family="sans-serif"),
-      ),
+      legend=dict(orientation="h", y=1.1),
   )
   st.plotly_chart(fig_trend, use_container_width=True)
 
