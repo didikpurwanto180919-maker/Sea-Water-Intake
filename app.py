@@ -668,7 +668,7 @@ with col_status:
             7. Optimalkan pengaturan valve outlet kondensor<br>
             8. Amati vacuum condensor ST<br>
             9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian<br>
-            10. Siapkan derating jika vacuum condensor ST < 0.85 barg
+            10. Turunkan beban GT & ST jika vacuum condensor < 0.85 barg
             </span>
         </div>
         """,
@@ -829,7 +829,7 @@ if wa_active and risk_class == 2 and not manual_override:
         "7. Optimalkan pengaturan valve outlet kondensor\n"
         "8. Amati vacuum condensor ST\n"
         "9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian\n"
-        "10. Siapkan derating jika vacuum condensor ST < 0.85 barg"
+        "10. Turunkan beban GT & ST jika vacuum condensor < 0.85 barg"
     )
     result = kirim_whatsapp(wa_token, wa_target, pesan_darurat)
     if result.get("status"):
