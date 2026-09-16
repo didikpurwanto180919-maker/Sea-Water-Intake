@@ -1013,27 +1013,25 @@ with c_graph1:
       )
   )
 
-  # Layout diperbarui agar judul chart & legend tidak saling tumpang tindih
+  # Layout diperbarui dengan margin bawah (b=60) & posisi legend diturunkan (y=-0.35)
   fig_trend.update_layout(
       title=dict(
-          text=(
-              "<b>Tren Beda Tekanan (ΔP) & Suhu Laut (SST) 24 Jam</b>"
-          ),  # Kata screen dihilangkan/disederhanakan
+          text="<b>Tren Beda Tekanan (ΔP) & Suhu Laut (SST) 24 Jam</b>",
           font=dict(size=14, color="#ffffff"),
           x=0.0,
           y=0.95,
       ),
-      height=300,
+      height=320,
       paper_bgcolor="rgba(0,0,0,0)",
       plot_bgcolor="#1a2332",
       font=dict(color="#e0e6ed"),
-      margin=dict(l=10, r=10, t=50, b=10),
+      margin=dict(l=10, r=10, t=50, b=60),
       yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
       yaxis2=dict(title="SST (°C)", color="#00d2ff", overlaying="y", side="right"),
       legend=dict(
           orientation="h",
-          yanchor="bottom",
-          y=-0.3,  # Memindahkan legend ke bawah grafik agar bersih
+          yanchor="top",
+          y=-0.35,
           xanchor="center",
           x=0.5,
           bgcolor="rgba(15, 23, 42, 0.9)",
