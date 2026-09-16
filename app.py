@@ -1,6 +1,5 @@
 import datetime
 import zoneinfo
-import folium
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -8,7 +7,6 @@ import requests
 import streamlit as st
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
-from streamlit_folium import st_folium
 from xgboost import XGBClassifier
 
 # ==========================================
@@ -410,7 +408,7 @@ else:
         "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
-# Executive Header (Updated)
+# Executive Header
 st.markdown(
     f"""
 <div class="executive-header">
@@ -589,44 +587,13 @@ with col_gauge:
     st.plotly_chart(fig_gauge, use_container_width=True)
 
 with col_map:
-    st.markdown("#### 📍 SWI Intake Grid Map & Flow Vector")
-    m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=15)
-    folium.TileLayer(
-        tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-        attr="Google Satellite",
-    ).add_to(m)
-
-    hex_color = "#ef4444" if risk_class == 2 else ("#f59e0b" if risk_class == 1 else "#10b981")
-    
-    folium.CircleMarker(
-        location=[GRATI_LAT, GRATI_LON],
-        radius=8,
-        popup="SWI Intake PLTGU Grati (S 7°38.659' E 113°01.641')",
-        color=hex_color,
-        fill=True,
-        fill_color=hex_color,
-        fill_opacity=0.9,
-    ).add_to(m)
-
-    folium.CircleMarker(
-        location=[OCEAN_LAT, OCEAN_LON],
-        radius=6,
-        popup=f"Titik Pantau Oceanografi (Kecepatan Arus: {data['current_speed']} m/s)",
-        color="#00d2ff",
-        fill=True,
-        fill_color="#00d2ff",
-        fill_opacity=0.8,
-    ).add_to(m)
-
-    folium.PolyLine(
-        locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
-        color="#00d2ff",
-        weight=2.5,
-        dash_array="5, 10",
-        popup=f"Trajektori Pergerakan (ETA: ~{eta_minutes} Menit)"
-    ).add_to(m)
-
-    st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
+    st.markdown("#### 📍 Windy Live Weather Map & Flow Vector")
+    # Mengganti folium dengan iframe langsung dari Windy.com sesuai koordinat permintaan
+    windy_embed_html = """
+    <iframe src="https://www.windy.com/embeddata.php?lat=-7.644&lon=113.027&zoom=16&level=surface&overlay=wind&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default" 
+            width="100%" height="170" frameborder="0" style="border-radius: 8px;"></iframe>
+    """
+    components.html(windy_embed_html, height=170)
 
 st.markdown("---")
 
@@ -810,13 +777,11 @@ with c_graph1:
     )
     fig_trend.add_trace(
         go.Scatter(
-            go.Scatter(
-                x=times,
-                y=sst_trend,
-                name="SST (°C)",
-                line=dict(color="#00d2ff", width=2, dash="dash"),
-                yaxis="y2",
-            )
+            x=times,
+            y=sst_trend,
+            name="SST (°C)",
+            line=dict(color="#00d2ff", width=2, dash="dash"),
+            yaxis="y2",
         )
     )
 
