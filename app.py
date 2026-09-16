@@ -184,7 +184,6 @@ def kirim_whatsapp(token, target, pesan):
     }
 
   target_cleaned = target.strip()
-  # Jika bukan Group ID (tidak berakhiran @g.us), format nomor HP standar
   if not target_cleaned.endswith("@g.us"):
     if target_cleaned.startswith("0"):
       target_cleaned = "62" + target_cleaned[1:]
@@ -375,7 +374,6 @@ model, train_df = train_high_precision_model()
 # ==========================================
 st.sidebar.header("🤖 JELLY-MARVEL Control Panel")
 
-# Pengaturan WhatsApp Alert & Group di Sidebar
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
 wa_active = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=True)
@@ -383,7 +381,6 @@ wa_token = st.sidebar.text_input(
     "WhatsApp API Token (Fonnte)", type="password", value="9WEJQ8pKRJsRU5xKNyBs"
 )
 
-# Pilihan Kirim ke Personal atau Grup
 wa_destination_type = st.sidebar.radio(
     "Target Pengiriman:", ("Nomor HP Pribadi", "WhatsApp Group (WA Group)")
 )
@@ -400,7 +397,6 @@ else:
       "💡 *Tips: Masukkan Group ID Fonnte berakhiran `@g.us`*"
   )
 
-# Tombol Test WhatsApp dipindah ke Sidebar agar ringkas dan tidak di tengah
 if st.sidebar.button("🚀 Test Kirim WhatsApp"):
   if not wa_target:
     st.sidebar.warning("⚠️ Masukkan nomor HP atau Group ID terlebih dahulu!")
@@ -599,7 +595,6 @@ current_dt = data["raw_datetime"]
 eta_dt = current_dt + datetime.timedelta(minutes=eta_minutes)
 eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
 
-# Modul Audio Alarm
 if risk_class == 2:
   sound_script = """
     <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
@@ -1018,15 +1013,25 @@ with c_graph1:
       )
   )
 
+  # [UPDATE] Konfigurasi Legend dengan latar belakang dan batas agar keterangan warna terlihat jelas dan kontras
   fig_trend.update_layout(
       height=260,
       paper_bgcolor="rgba(0,0,0,0)",
       plot_bgcolor="#1a2332",
       font=dict(color="#94a3b8"),
-      margin=dict(l=10, r=10, t=10, b=10),
+      margin=dict(l=10, r=10, t=35, b=10),
       yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
       yaxis2=dict(title="SST (°C)", color="#00d2ff", overlaying="y", side="right"),
-      legend=dict(orientation="h", y=1.1),
+      legend=dict(
+          orientation="h",
+          yanchor="bottom",
+          y=1.02,
+          xanchor="right",
+          x=1,
+          bgcolor="rgba(26, 35, 50, 0.85)",
+          bordercolor="#2e3b4e",
+          borderwidth=1,
+      ),
   )
   st.plotly_chart(fig_trend, use_container_width=True)
 
