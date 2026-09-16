@@ -140,21 +140,21 @@ GRATI_LAT, GRATI_LON = -7.644317, 113.027350
 OCEAN_LAT, OCEAN_LON = -7.641000, 113.027350
 
 FEATURE_COLUMNS = [
-    "sst",
-    "chlorophyll_a",
-    "salinity",
-    "do_level",
-    "turbidity",
-    "current_speed",
-    "current_dir",
-    "wave_height",
-    "wind_speed",
-    "wind_dir",
-    "tide_phase",
-    "sea_level",
+    "Suhu Permukaan Laut",
+    "Klorofil-a",
+    "Salinitas",
+    "Oksigen Terlarut",
+    "Kekeruhan",
+    "Kecepatan Arus",
+    "Arah Arus",
+    "Tinggi Gelombang",
+    "Kecepatan Angin",
+    "Arah Angin",
+    "Siklus Pasang",
+    "Elevasi Muka Air",
     "delta_p",
-    "flow_velocity",
-    "tbs_torque",
+    "Flow Velocity",
+    "tbs tor",
 ]
 
 MONTH_NAMES = [
@@ -263,27 +263,27 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
 
   delta_p = round(0.12 + (current_speed_ms * 0.35) + (chlorophyll * 0.08), 2)
   flow_velocity = round(0.40 + (current_speed_ms * 0.30), 2)
-  tbs_torque = round(15.0 + (delta_p * 55.0), 1)
+  tbs_tor = round(15.0 + (delta_p * 55.0), 1)
 
   return {
       "status": status_str,
       "timestamp": wib_time_str,
       "raw_datetime": wib_now,
-      "sst": round(sst, 2),
-      "chlorophyll_a": max(0.5, chlorophyll),
-      "salinity": salinity,
-      "do_level": max(1.0, do_level),
-      "turbidity": turbidity,
-      "current_speed": round(current_speed_ms, 2),
-      "current_dir": current_dir,
-      "wave_height": round(wave_height, 2),
-      "wind_speed": round(wind_speed, 1),
-      "wind_dir": wind_dir,
-      "tide_phase": tide_phase,
-      "sea_level": sea_level,
+      "Suhu Permukaan Laut": round(sst, 2),
+      "Klorofil-a": max(0.5, chlorophyll),
+      "Salinitas": salinity,
+      "Oksigen Terlarut": max(1.0, do_level),
+      "Kekeruhan": turbidity,
+      "Kecepatan Arus": round(current_speed_ms, 2),
+      "Arah Arus": current_dir,
+      "Tinggi Gelombang": round(wave_height, 2),
+      "Kecepatan Angin": round(wind_speed, 1),
+      "Arah Angin": wind_dir,
+      "Siklus Pasang": tide_phase,
+      "Elevasi Muka Air": sea_level,
       "delta_p": delta_p,
-      "flow_velocity": flow_velocity,
-      "tbs_torque": tbs_torque,
+      "Flow Velocity": flow_velocity,
+      "tbs tor": tbs_tor,
   }
 
 
@@ -312,7 +312,7 @@ def train_high_precision_model():
 
   delta_p = np.random.uniform(0.05, 1.5, size=n_samples)
   flow_velocity = np.random.uniform(0.2, 1.2, size=n_samples)
-  tbs_torque = np.random.uniform(10.0, 95.0, size=n_samples)
+  tbs_tor = np.random.uniform(10.0, 95.0, size=n_samples)
 
   is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
   is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
@@ -327,27 +327,27 @@ def train_high_precision_model():
       + (wave_height * 1.5)
       + (tide_phase * 4.0)
       + (delta_p * 6.0)
-      + (tbs_torque * 0.08)
+      + (tbs_tor * 0.08)
   )
 
   labels = np.where(risk_score < 18.0, 0, np.where(risk_score < 32.0, 1, 2))
 
   df = pd.DataFrame({
-      "sst": sst,
-      "chlorophyll_a": chlorophyll,
-      "salinity": salinity,
-      "do_level": do_level,
-      "turbidity": turbidity,
-      "current_speed": current_speed,
-      "current_dir": current_dir,
-      "wave_height": wave_height,
-      "wind_speed": wind_speed,
-      "wind_dir": wind_dir,
-      "tide_phase": tide_phase,
-      "sea_level": sea_level,
+      "Suhu Permukaan Laut": sst,
+      "Klorofil-a": chlorophyll,
+      "Salinitas": salinity,
+      "Oksigen Terlarut": do_level,
+      "Kekeruhan": turbidity,
+      "Kecepatan Arus": current_speed,
+      "Arah Arus": current_dir,
+      "Tinggi Gelombang": wave_height,
+      "Kecepatan Angin": wind_speed,
+      "Arah Angin": wind_dir,
+      "Siklus Pasang": tide_phase,
+      "Elevasi Muka Air": sea_level,
       "delta_p": delta_p,
-      "flow_velocity": flow_velocity,
-      "tbs_torque": tbs_torque,
+      "Flow Velocity": flow_velocity,
+      "tbs tor": tbs_tor,
       "risk_level": labels,
   })
 
@@ -522,35 +522,41 @@ else:
   data = {
       "timestamp": now_wib.strftime("%d %B %Y | %H:%M:%S WIB"),
       "raw_datetime": now_wib,
-      "sst": st.sidebar.slider("Suhu Laut (°C)", 25.0, 35.0, key="sim_sst"),
-      "chlorophyll_a": st.sidebar.slider(
+      "Suhu Permukaan Laut": st.sidebar.slider(
+          "Suhu Permukaan Laut (°C)", 25.0, 35.0, key="sim_sst"
+      ),
+      "Klorofil-a": st.sidebar.slider(
           "Klorofil-a (mg/m³)", 0.1, 8.0, key="sim_chl"
       ),
-      "salinity": st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, key="sim_sal"),
-      "do_level": st.sidebar.slider("DO (mg/L)", 1.0, 8.0, key="sim_do"),
-      "turbidity": st.sidebar.slider("Turbidity (NTU)", 0.0, 50.0, key="sim_turb"),
-      "current_speed": st.sidebar.slider(
+      "Salinitas": st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, key="sim_sal"),
+      "Oksigen Terlarut": st.sidebar.slider(
+          "Oksigen Terlarut (mg/L)", 1.0, 8.0, key="sim_do"
+      ),
+      "Kekeruhan": st.sidebar.slider(
+          "Kekeruhan (NTU)", 0.0, 50.0, key="sim_turb"
+      ),
+      "Kecepatan Arus": st.sidebar.slider(
           "Kecepatan Arus (m/s)", 0.0, 2.0, key="sim_cspd"
       ),
-      "current_dir": st.sidebar.slider("Arah Arus (°)", 0, 360, key="sim_cdir"),
-      "wave_height": st.sidebar.slider(
+      "Arah Arus": st.sidebar.slider("Arah Arus (°)", 0, 360, key="sim_cdir"),
+      "Tinggi Gelombang": st.sidebar.slider(
           "Tinggi Gelombang (m)", 0.0, 3.0, key="sim_wh"
       ),
-      "wind_speed": st.sidebar.slider(
-          "Angin (Knot)", 0.0, 30.0, key="sim_wspd"
+      "Kecepatan Angin": st.sidebar.slider(
+          "Kecepatan Angin (Knot)", 0.0, 30.0, key="sim_wspd"
       ),
-      "wind_dir": st.sidebar.slider("Arah Angin (°)", 0, 360, key="sim_wdir"),
-      "tide_phase": st.sidebar.selectbox(
+      "Arah Angin": st.sidebar.slider("Arah Angin (°)", 0, 360, key="sim_wdir"),
+      "Siklus Pasang": st.sidebar.selectbox(
           "Siklus Pasang", (0, 1), key="sim_tide"
       ),
-      "sea_level": st.sidebar.slider(
+      "Elevasi Muka Air": st.sidebar.slider(
           "Elevasi Muka Air (m)", -1.5, 2.5, key="sim_sl"
       ),
-      "delta_p": st.sidebar.slider("ΔP Screen (mWC)", 0.0, 2.0, key="sim_dp"),
-      "flow_velocity": st.sidebar.slider(
+      "delta_p": st.sidebar.slider("delta_p (mWC)", 0.0, 2.0, key="sim_dp"),
+      "Flow Velocity": st.sidebar.slider(
           "Flow Velocity (m/s)", 0.0, 1.5, key="sim_fv"
       ),
-      "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
+      "tbs tor": st.sidebar.slider("tbs tor (%)", 0.0, 100.0, key="sim_torq"),
   }
 
 # Executive Header
@@ -587,7 +593,7 @@ if manual_override:
   probabilities = np.array([1.0, 0.0, 0.0])
 
 DISTANCE_TO_INTAKE_M = 370.0
-eff_speed = max(data["current_speed"], 0.05)
+eff_speed = max(data["Kecepatan Arus"], 0.05)
 time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
 eta_minutes = int(time_seconds / 60)
 
@@ -660,7 +666,7 @@ with col_status:
             5. Pengamatan DP all strainer cooling system.<br>
             6. Optimalkan pengaturan valve outlet kondensor.<br>
             7. Amati vacuum condensor.<br>
-            8. Siapkan derating jika ΔP > 0.80 mWC.
+            8. Siapkan derating jika delta_p > 0.80 mWC.
             </span>
         </div>
         """,
@@ -764,7 +770,7 @@ with col_map:
       radius=6,
       popup=(
           "Titik Pantau Oceanografi (Kecepatan Arus:"
-          f" {data['current_speed']} m/s)"
+          f" {data['Kecepatan Arus']} m/s)"
       ),
       color="#00d2ff",
       fill=True,
@@ -906,14 +912,14 @@ with p1:
       f"""
     <div class="pillar-card">
         <div class="pillar-title">🧫 1. Biokimia Laut</div>
-        <div class="metric-label">Suhu Laut (SST)</div>
-        <div class="metric-value">{data['sst']} °C</div><br>
+        <div class="metric-label">Suhu Permukaan Laut</div>
+        <div class="metric-value">{data['Suhu Permukaan Laut']} °C</div><br>
         <div class="metric-label">Klorofil-a</div>
-        <div class="metric-value">{data['chlorophyll_a']} mg/m³</div><br>
+        <div class="metric-value">{data['Klorofil-a']} mg/m³</div><br>
         <div class="metric-label">Salinitas</div>
-        <div class="metric-value">{data['salinity']} PSU</div><br>
-        <div class="metric-label">Oksigen Terlarut (DO)</div>
-        <div class="metric-value">{data['do_level']} mg/L</div>
+        <div class="metric-value">{data['Salinitas']} PSU</div><br>
+        <div class="metric-label">Oksigen Terlarut</div>
+        <div class="metric-value">{data['Oksigen Terlarut']} mg/L</div>
     </div>
     """,
       unsafe_allow_html=True,
@@ -925,32 +931,32 @@ with p2:
     <div class="pillar-card">
         <div class="pillar-title">🌊 2. Hidro-Oseanografi</div>
         <div class="metric-label">Kecepatan Arus</div>
-        <div class="metric-value">{data['current_speed']} m/s</div><br>
+        <div class="metric-value">{data['Kecepatan Arus']} m/s</div><br>
         <div class="metric-label">Arah Arus</div>
-        <div class="metric-value">{data['current_dir']}° (Inlet)</div><br>
+        <div class="metric-value">{data['Arah Arus']}° (Inlet)</div><br>
         <div class="metric-label">Tinggi Gelombang</div>
-        <div class="metric-value">{data['wave_height']} m</div><br>
-        <div class="metric-label">Kekeruhan (Turbidity)</div>
-        <div class="metric-value">{data['turbidity']} NTU</div>
+        <div class="metric-value">{data['Tinggi Gelombang']} m</div><br>
+        <div class="metric-label">Kekeruhan</div>
+        <div class="metric-value">{data['Kekeruhan']} NTU</div>
     </div>
     """,
       unsafe_allow_html=True,
   )
 
 with p3:
-  tide_text = "Spring Tide" if data["tide_phase"] == 1 else "Neap Tide"
+  tide_text = "Spring Tide" if data["Siklus Pasang"] == 1 else "Neap Tide"
   st.markdown(
       f"""
     <div class="pillar-card">
         <div class="pillar-title">🌤️ 3. Cuaca & Pasang Surut</div>
         <div class="metric-label">Kecepatan Angin</div>
-        <div class="metric-value">{data['wind_speed']} Knot</div><br>
+        <div class="metric-value">{data['Kecepatan Angin']} Knot</div><br>
         <div class="metric-label">Arah Angin</div>
-        <div class="metric-value">{data['wind_dir']}°</div><br>
-        <div class="metric-label">Siklus Pasang Laut</div>
+        <div class="metric-value">{data['Arah Angin']}°</div><br>
+        <div class="metric-label">Siklus Pasang</div>
         <div class="metric-value">{tide_text}</div><br>
         <div class="metric-label">Elevasi Muka Air</div>
-        <div class="metric-value">{data['sea_level']} m</div>
+        <div class="metric-value">{data['Elevasi Muka Air']} m</div>
     </div>
     """,
       unsafe_allow_html=True,
@@ -962,12 +968,12 @@ with p4:
       f"""
     <div class="pillar-card">
         <div class="pillar-title">⚙️ 4. Sensor Internal SWI</div>
-        <div class="metric-label">Beda Tekanan ΔP</div>
+        <div class="metric-label">Beda Tekanan Screen (delta_p)</div>
         <div class="metric-value" style="color:{dp_color};">{data['delta_p']} mWC</div><br>
-        <div class="metric-label">Flow Velocity Intake</div>
-        <div class="metric-value">{data['flow_velocity']} m/s</div><br>
-        <div class="metric-label">Torsi Motor TBS</div>
-        <div class="metric-value">{data['tbs_torque']} %</div><br>
+        <div class="metric-label">Flow Velocity</div>
+        <div class="metric-value">{data['Flow Velocity']} m/s</div><br>
+        <div class="metric-label">Torsi Motor TBS (tbs tor)</div>
+        <div class="metric-value">{data['tbs tor']} %</div><br>
         <div class="metric-label">Filter Status</div>
         <div class="metric-value" style="color:#10b981;">CLEAN</div>
     </div>
@@ -992,14 +998,16 @@ with c_graph1:
 
   np.random.seed(int(datetime.datetime.now(WIB_TZ).timestamp()) // 3600)
   dp_trend = np.random.normal(loc=data["delta_p"], scale=0.03, size=24)
-  sst_trend = np.random.normal(loc=data["sst"], scale=0.15, size=24)
+  sst_trend = np.random.normal(
+      loc=data["Suhu Permukaan Laut"], scale=0.15, size=24
+  )
 
   fig_trend = go.Figure()
   fig_trend.add_trace(
       go.Scatter(
           x=times,
           y=dp_trend,
-          name="ΔP Screen (mWC)",
+          name="delta_p (mWC)",
           line=dict(color="#ef4444", width=3),
       )
   )
@@ -1007,16 +1015,18 @@ with c_graph1:
       go.Scatter(
           x=times,
           y=sst_trend,
-          name="SST (°C)",
+          name="Suhu Permukaan Laut (°C)",
           line=dict(color="#00d2ff", width=2, dash="dash"),
           yaxis="y2",
       )
   )
 
-  # Layout diperbarui dengan margin bawah (b=60) & posisi legend diturunkan (y=-0.35)
   fig_trend.update_layout(
       title=dict(
-          text="<b>Tren Beda Tekanan (ΔP) & Suhu Laut (SST) 24 Jam</b>",
+          text=(
+              "<b>Tren Beda Tekanan (delta_p) & Suhu Permukaan Laut (24"
+              " Jam)</b>"
+          ),
           font=dict(size=14, color="#ffffff"),
           x=0.0,
           y=0.95,
@@ -1026,8 +1036,10 @@ with c_graph1:
       plot_bgcolor="#1a2332",
       font=dict(color="#e0e6ed"),
       margin=dict(l=10, r=10, t=50, b=60),
-      yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
-      yaxis2=dict(title="SST (°C)", color="#00d2ff", overlaying="y", side="right"),
+      yaxis=dict(title="delta_p (mWC)", color="#ef4444"),
+      yaxis2=dict(
+          title="Suhu Permukaan Laut (°C)", color="#00d2ff", overlaying="y", side="right"
+      ),
       legend=dict(
           orientation="h",
           yanchor="top",
@@ -1043,16 +1055,30 @@ with c_graph1:
   st.plotly_chart(fig_trend, use_container_width=True)
 
 with c_graph2:
-  st.markdown(
-      "#### 🧠 Explainable AI: Parameter Pemicu Utama (Feature Importance)"
-  )
+  st.markdown("#### 🧠 XAI: Parameter Pemicu Utama (Feature Importance)")
   importance = model.feature_importances_
   features = input_df.columns
-  df_imp = (
-      pd.DataFrame({"Feature": features, "Importance": importance})
-      .sort_values(by="Importance", ascending=True)
-      .tail(7)
-  )
+  df_imp = pd.DataFrame({"Feature": features, "Importance": importance})
+
+  rename_dict = {
+      "Suhu Permukaan Laut": "Suhu Permukaan Laut",
+      "Klorofil-a": "Klorofil-a",
+      "Salinitas": "Salinitas",
+      "Oksigen Terlarut": "Oksigen Terlarut",
+      "Kekeruhan": "Kekeruhan",
+      "Kecepatan Arus": "Kecepatan Arus",
+      "Arah Arus": "Arah Arus",
+      "Tinggi Gelombang": "Tinggi Gelombang",
+      "Kecepatan Angin": "Kecepatan Angin",
+      "Arah Angin": "Arah Angin",
+      "Siklus Pasang": "Siklus Pasang",
+      "Elevasi Muka Air": "Elevasi Muka Air",
+      "delta_p": "delta_p",
+      "Flow Velocity": "Flow Velocity",
+      "tbs tor": "tbs tor",
+  }
+  df_imp["Feature"] = df_imp["Feature"].map(rename_dict)
+  df_imp = df_imp.sort_values(by="Importance", ascending=True).tail(7)
 
   fig_imp = go.Figure(
       go.Bar(
@@ -1063,10 +1089,10 @@ with c_graph2:
       )
   )
   fig_imp.update_layout(
-      height=260,
+      height=280,
       paper_bgcolor="rgba(0,0,0,0)",
       plot_bgcolor="#1a2332",
       font=dict(color="#94a3b8"),
-      margin=dict(l=10, r=10, t=10, b=10),
+      margin=dict(l=10, r=10, t=10, b=30),
   )
   st.plotly_chart(fig_imp, use_container_width=True)
