@@ -815,10 +815,21 @@ if wa_active and risk_class == 2 and not manual_override:
   current_hour_key = data["raw_datetime"].strftime("%Y-%m-%d-%H")
   if st.session_state.get("last_sent_hour") != current_hour_key:
     pesan_darurat = (
-        "🚨 *DARURAT PLTGU GRATI*\n\nTerdeteksi *SERANGAN UBUR-UBUR MASSAL*"
-        f" pada intake!\nIndeks Risiko: {display_score:.1f}%\nEstimasi Tiba:"
-        f" Pukul {eta_time_str} (~{eta_minutes} Menit)\n\nHarap segera jalankan"
-        " SOP Mitigasi Shift Operator!"
+        "🚨 *DARURAT PLTGU GRATI*\n\n"
+        "Terdeteksi *SERANGAN UBUR-UBUR MASSAL* pada intake!\n"
+        f"Indeks Risiko: {display_score:.1f}%\n"
+        f"Estimasi Tiba: Pukul {eta_time_str} (~{eta_minutes} Menit)\n\n"
+        "🔴 *MANDATORI OPERATOR SHIFT:*\n"
+        "1. Verifikasi aktual lapangan kondisi sea water intake\n"
+        "2. Persiapan pengoperasian sistem konveyor MARVEL\n"
+        "3. Jalankan revolving screen/TBS mode continuous high speed\n"
+        "4. Aktifkan screen wash pump pressure max.\n"
+        "5. Manual running debris filter condensor\n"
+        "6. Pengamatan Jellly Boom screen dan DP all strainer cooling system\n"
+        "7. Optimalkan pengaturan valve outlet kondensor\n"
+        "8. Amati vacuum condensor ST\n"
+        "9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian\n"
+        "10. Siapkan derating jika vacuum condensor ST < 0.85 barg"
     )
     result = kirim_whatsapp(wa_token, wa_target, pesan_darurat)
     if result.get("status"):
