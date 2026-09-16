@@ -659,14 +659,16 @@ with col_status:
             <hr style="border-color:#ef4444; margin: 8px 0;">
             <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
             <span style="font-size:11px; color:#fca5a5;">
-            1. Persiapan Pengoperasian Sistem Konveyor/MARVEL.<br>
-            2. Jalankan Revolving screen/TBS mode <b>Continuous High Speed</b>.<br>
-            3. Aktifkan Screen Wash Pump Pressure Max.<br>
-            4. Manual running debris filter condensor.<br>
-            5. Pengamatan DP all strainer cooling system.<br>
-            6. Optimalkan pengaturan valve outlet kondensor.<br>
-            7. Amati vacuum condensor.<br>
-            8. Siapkan derating jika delta_p > 0.80 mWC.
+            1. Verifikasi aktual lapangan kondisi sea water intake<br>
+            2. Persiapan pengoperasian sistem konveyor MARVEL<br>
+            3. Jalankan revolving screen/TBS mode continuous high speed<br>
+            4. Aktifkan screen wash pump pressure max.<br>
+            5. Manual running debris filter condensor<br>
+            6. Pengamatan Jellly Boom screen dan DP all strainer cooling system<br>
+            7. Optimalkan pengaturan valve outlet kondensor<br>
+            8. Amati vacuum condensor<br>
+            9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian<br>
+            10. Siapkan derating jika vacuum condensor < 0.85 barg
             </span>
         </div>
         """,
