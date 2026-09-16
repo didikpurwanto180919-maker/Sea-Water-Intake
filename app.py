@@ -588,19 +588,12 @@ with col_gauge:
 
 with col_map:
     st.markdown("#### 📍 Windy Live Weather Map & Flow Vector")
-    # Menggunakan tombol/tautan interaktif yang kompatibel dengan semua browser (bebas blokir iframe)
-    st.markdown(
-        """
-        <div style="background-color: #1a2332; border: 1px solid #2e3b4e; border-radius: 8px; padding: 15px; text-align: center; height: 170px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <p style="color: #00d2ff; font-size: 13px; font-weight: bold; margin-bottom: 8px;">🌐 Buka Peta Interaktif Selat Madura</p>
-            <p style="color: #94a3b8; font-size: 11px; margin-bottom: 12px;">Klik tombol di bawah untuk memantau pergerakan angin & arus secara real-time langsung di situs Windy.</p>
-            <a href="https://www.windy.com/-7.644/113.027?-7.647,113.027,16" target="_blank" style="background-color: #00d2ff; color: #0e1726; padding: 6px 16px; border-radius: 6px; font-weight: bold; font-size: 12px; text-decoration: none; box-shadow: 0 2px 8px rgba(0,210,255,0.3);">
-                🚀 Buka Windy.com
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Mengganti folium dengan iframe langsung dari Windy.com sesuai koordinat permintaan
+    windy_embed_html = """
+    <iframe src="https://www.windy.com/embeddata.php?lat=-7.644&lon=113.027&zoom=16&level=surface&overlay=wind&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default" 
+            width="100%" height="170" frameborder="0" style="border-radius: 8px;"></iframe>
+    """
+    components.html(windy_embed_html, height=170)
 
 st.markdown("---")
 
