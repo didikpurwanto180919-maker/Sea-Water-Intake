@@ -640,7 +640,7 @@ with col_status:
         """
         <div class="status-box-safe">
             <h3 style="margin:0; color:#10b981; font-weight:800; font-size:16px;">🟢 FORCE NORMAL: OVERRIDE OPERATOR SHIFT</h3>
-            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:0;">Verifikasi lapangan dikonfirmasi: Nihil penumpukan ubur-ubur di kanal intake SWI. Sinyal indikasi model telah dinonaktifkan secara manual.</p>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:0;">Verifikasi lapangan dikonfirmasi: Nihil penumpukan ubur-ubur di kanal intake. Sinyal indikasi model telah dinonaktifkan secara manual.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1096,5 +1096,8 @@ with c_graph2:
       plot_bgcolor="#1a2332",
       font=dict(color="#94a3b8"),
       margin=dict(l=10, r=10, t=10, b=30),
+      xaxis=dict(
+          title="Importance Score", color="#94a3b8"
+      ),  # Label satuan sumbu x ditambahkan di sini
   )
   st.plotly_chart(fig_imp, use_container_width=True)
