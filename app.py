@@ -13,13 +13,15 @@ st.set_page_config(
 # --- SIDEBAR CONFIGURATION ---
 st.sidebar.markdown("## ⚙️ JELLY-MARVEL Control Panel")
 
-# Pengaturan WhatsApp Alert
+# Pengaturan WhatsApp Alert (Token default dari Anda)
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
 wa_active = st.sidebar.checkbox(
     "Aktifkan Auto WhatsApp Alert", value=True
 )
 wa_token = st.sidebar.text_input(
-    "WhatsApp API Token", type="password", value=""
+    "WhatsApp API Token",
+    type="password",
+    value="9WEJQ8pKRJsRU5xKNyBs",  # Token Fonnte Anda
 )
 wa_target = st.sidebar.text_input(
     "Nomor HP Tujuan (Shift Operator)", value="082134902752"
@@ -64,7 +66,7 @@ turbidity = st.sidebar.slider("Turbidity (NTU)", 0.0, 50.0, 32.0)
 
 
 def kirim_whatsapp(token, target, pesan):
-  """Fungsi untuk mengirim pesan WhatsApp menggunakan API Fonnte / sejenis"""
+  """Fungsi untuk mengirim pesan WhatsApp menggunakan API Fonnte"""
   if not token or not target:
     return {
         "status": False,
