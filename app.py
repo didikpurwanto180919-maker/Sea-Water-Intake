@@ -983,7 +983,6 @@ st.markdown("---")
 c_graph1, c_graph2 = st.columns(2)
 
 with c_graph1:
-  st.markdown("#### 📈 Tren Beda Tekanan Screen (ΔP) & Suhu Laut 24 Jam")
   times = [
       (
           datetime.datetime.now(WIB_TZ) - datetime.timedelta(hours=i)
@@ -1014,25 +1013,33 @@ with c_graph1:
       )
   )
 
-  # PERBAIKAN: Konfigurasi legend yang jelas dengan background kontras & teks putih
+  # Layout diperbarui agar judul chart & legend tidak saling tumpang tindih
   fig_trend.update_layout(
-      height=260,
+      title=dict(
+          text=(
+              "<b>Tren Beda Tekanan (ΔP) & Suhu Laut (SST) 24 Jam</b>"
+          ),  # Kata screen dihilangkan/disederhanakan
+          font=dict(size=14, color="#ffffff"),
+          x=0.0,
+          y=0.95,
+      ),
+      height=300,
       paper_bgcolor="rgba(0,0,0,0)",
       plot_bgcolor="#1a2332",
       font=dict(color="#e0e6ed"),
-      margin=dict(l=10, r=10, t=35, b=10),
+      margin=dict(l=10, r=10, t=50, b=10),
       yaxis=dict(title="ΔP (mWC)", color="#ef4444"),
       yaxis2=dict(title="SST (°C)", color="#00d2ff", overlaying="y", side="right"),
       legend=dict(
           orientation="h",
           yanchor="bottom",
-          y=1.05,
-          xanchor="right",
-          x=1,
+          y=-0.3,  # Memindahkan legend ke bawah grafik agar bersih
+          xanchor="center",
+          x=0.5,
           bgcolor="rgba(15, 23, 42, 0.9)",
-          bordercolor="#00d2ff",
+          bordercolor="#2e3b4e",
           borderwidth=1,
-          font=dict(color="#ffffff", size=11, family="sans-serif"),
+          font=dict(color="#ffffff", size=11),
       ),
   )
   st.plotly_chart(fig_trend, use_container_width=True)
