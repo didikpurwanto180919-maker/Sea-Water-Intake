@@ -381,9 +381,8 @@ wa_active = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=True)
 wa_token = st.sidebar.text_input(
     "WhatsApp API Token (Fonnte)", type="password", value="9WEJQ8pKRJsRU5xKNyBs"
 )
-wa_target = st.sidebar.text_input(
-    "Nomor HP Tujuan (Shift Operator)", value="082134902752"
-)
+# Nilai default diubah menjadi kosong ("") sesuai permintaan
+wa_target = st.sidebar.text_input("Nomor HP Tujuan (Shift Operator)", value="")
 st.sidebar.markdown("---")
 
 manual_override = st.sidebar.checkbox(
