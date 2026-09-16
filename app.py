@@ -967,8 +967,8 @@ with p4:
   st.markdown(
       f"""
     <div class="pillar-card">
-        <div class="pillar-title">⚙️ 4. Sensor Internal SWI</div>
-        <div class="metric-label">Beda Tekanan Screen (delta_p)</div>
+        <div class="pillar-title">⚙️ 4. INTERNAL SWI</div>
+        <div class="metric-label">Beda Tekanan (delta_p)</div>
         <div class="metric-value" style="color:{dp_color};">{data['delta_p']} mWC</div><br>
         <div class="metric-label">Flow Velocity</div>
         <div class="metric-value">{data['Flow Velocity']} m/s</div><br>
