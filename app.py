@@ -666,9 +666,9 @@ with col_status:
             5. Manual running debris filter condensor<br>
             6. Pengamatan Jellly Boom screen dan DP all strainer cooling system<br>
             7. Optimalkan pengaturan valve outlet kondensor<br>
-            8. Amati vacuum condensor<br>
+            8. Amati vacuum condensor ST<br>
             9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian<br>
-            10. Siapkan derating jika vacuum condensor < 0.85 barg
+            10. Siapkan derating jika vacuum condensor ST < 0.85 barg
             </span>
         </div>
         """,
