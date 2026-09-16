@@ -137,7 +137,7 @@ count = st_autorefresh(
 )
 
 GRATI_LAT, GRATI_LON = -7.644317, 113.027350
-OCEAN_LAT, OCEAN_LON = -7.641000, 113.027350  # Titik Pantau Oceanografi (~370m dari intake)
+OCEAN_LAT, OCEAN_LON = -7.641000, 113.027350
 
 FEATURE_COLUMNS = [
     "sst",
@@ -177,7 +177,6 @@ MONTH_NAMES = [
 # 2. FUNGSI KIRIM WHATSAPP (FONNTE API)
 # ==========================================
 def kirim_whatsapp(token, target, pesan):
-  """Fungsi untuk mengirim pesan WhatsApp menggunakan API Fonnte"""
   if not token or not target:
     return {
         "status": False,
@@ -381,8 +380,21 @@ wa_active = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=True)
 wa_token = st.sidebar.text_input(
     "WhatsApp API Token (Fonnte)", type="password", value="9WEJQ8pKRJsRU5xKNyBs"
 )
-# Nilai default diubah menjadi kosong ("") sesuai permintaan
 wa_target = st.sidebar.text_input("Nomor HP Tujuan (Shift Operator)", value="")
+
+# Tombol Test WhatsApp dipindah ke Sidebar agar lebih ringkas dan rapi
+if st.sidebar.button("🚀 Test Kirim WhatsApp"):
+  if not wa_target:
+    st.sidebar.warning("⚠️ Masukkan nomor HP tujuan terlebih dahulu!")
+  else:
+    with st.spinner("Mengirim pesan..."):
+      test_pesan = "🧪 *TEST PESAN JELLY-MARVEL PLTGU GRATI* - Sistem Beroperasi Normal."
+      res = kirim_whatsapp(wa_token, wa_target, test_pesan)
+      if res.get("status"):
+        st.sidebar.success("✅ Terkirim ke " + wa_target)
+      else:
+        st.sidebar.error("❌ Gagal: " + str(res.get("reason", "Periksa token")))
+
 st.sidebar.markdown("---")
 
 manual_override = st.sidebar.checkbox(
@@ -702,36 +714,12 @@ with col_gauge:
       )
   )
   fig_gauge.update_layout(
-      height=170,
+      height=210,
       margin=dict(l=20, r=20, t=10, b=10),
       paper_bgcolor="rgba(0,0,0,0)",
       font={"color": "#ffffff"},
   )
   st.plotly_chart(fig_gauge, use_container_width=True)
-
-  # --- TOMBOL UJI COBA MANUAL WHATSAPP DI BAWAH GAUGE ---
-  st.markdown("---")
-  st.markdown("#### 📱 Uji Coba WhatsApp Manual")
-  if st.button("🚀 Kirim Test WhatsApp Sekarang", type="primary"):
-    with st.spinner("Mengirim pesan WhatsApp..."):
-      status_label = (
-          "KRITIS: SERANGAN UBUR-UBUR"
-          if risk_class == 2
-          else ("WASPADA" if risk_class == 1 else "AMAN / NORMAL")
-      )
-      test_pesan = (
-          "🧪 *TEST PESAN JELLY-MARVEL PLTGU GRATI*\n\nSistem peringatan dini"
-          f" beroperasi normal.\nStatus saat ini: {status_label} (Risiko:"
-          f" {display_score:.1f}%)"
-      )
-      res = kirim_whatsapp(wa_token, wa_target, test_pesan)
-      if res.get("status"):
-        st.success("✅ WhatsApp berhasil terkirim ke " + wa_target)
-      else:
-        st.error(
-            "❌ Gagal mengirim WA. Alasan: "
-            + str(res.get("reason", "Periksa token/nomor"))
-        )
 
 with col_map:
   st.markdown("#### 📍 SWI Intake Grid Map & Flow Vector")
