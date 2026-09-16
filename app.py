@@ -180,12 +180,14 @@ def kirim_whatsapp(token, target, pesan):
   if not token or not target:
     return {
         "status": False,
-        "reason": "Token atau Nomor Tujuan belum diisi!",
+        "reason": "Token atau Tujuan (Nomor/Grup) belum diisi!",
     }
 
   target_cleaned = target.strip()
-  if target_cleaned.startswith("0"):
-    target_cleaned = "62" + target_cleaned[1:]
+  # Jika bukan Group ID (tidak berakhiran @g.us), format nomor HP standar
+  if not target_cleaned.endswith("@g.us"):
+    if target_cleaned.startswith("0"):
+      target_cleaned = "62" + target_cleaned[1:]
 
   url = "https://api.fonnte.com/send"
   headers = {"Authorization": token}
@@ -373,25 +375,41 @@ model, train_df = train_high_precision_model()
 # ==========================================
 st.sidebar.header("🤖 JELLY-MARVEL Control Panel")
 
-# Pengaturan WhatsApp Alert di Sidebar
+# Pengaturan WhatsApp Alert & Group di Sidebar
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
 wa_active = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=True)
 wa_token = st.sidebar.text_input(
     "WhatsApp API Token (Fonnte)", type="password", value="9WEJQ8pKRJsRU5xKNyBs"
 )
-wa_target = st.sidebar.text_input("Nomor HP Tujuan (Shift Operator)", value="")
 
-# Tombol Test WhatsApp dipindah ke Sidebar agar lebih ringkas dan rapi
+# Pilihan Kirim ke Personal atau Grup
+wa_destination_type = st.sidebar.radio(
+    "Target Pengiriman:", ("Nomor HP Pribadi", "WhatsApp Group (WA Group)")
+)
+
+if wa_destination_type == "Nomor HP Pribadi":
+  wa_target = st.sidebar.text_input("Nomor HP Tujuan (Shift Operator)", value="")
+else:
+  wa_target = st.sidebar.text_input(
+      "WhatsApp Group ID",
+      value="",
+      placeholder="Contoh: 628123456789-1600000000@g.us",
+  )
+  st.sidebar.caption(
+      "💡 *Tips: Masukkan Group ID Fonnte berakhiran `@g.us`*"
+  )
+
+# Tombol Test WhatsApp dipindah ke Sidebar agar ringkas dan tidak di tengah
 if st.sidebar.button("🚀 Test Kirim WhatsApp"):
   if not wa_target:
-    st.sidebar.warning("⚠️ Masukkan nomor HP tujuan terlebih dahulu!")
+    st.sidebar.warning("⚠️ Masukkan nomor HP atau Group ID terlebih dahulu!")
   else:
     with st.spinner("Mengirim pesan..."):
       test_pesan = "🧪 *TEST PESAN JELLY-MARVEL PLTGU GRATI* - Sistem Beroperasi Normal."
       res = kirim_whatsapp(wa_token, wa_target, test_pesan)
       if res.get("status"):
-        st.sidebar.success("✅ Terkirim ke " + wa_target)
+        st.sidebar.success("✅ Terkirim ke Target!")
       else:
         st.sidebar.error("❌ Gagal: " + str(res.get("reason", "Periksa token")))
 
