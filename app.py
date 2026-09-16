@@ -972,7 +972,7 @@ with p4:
         <div class="metric-value" style="color:{dp_color};">{data['delta_p']} mWC</div><br>
         <div class="metric-label">Flow Velocity</div>
         <div class="metric-value">{data['Flow Velocity']} m/s</div><br>
-        <div class="metric-label">Torsi Motor TBS (tbs tor)</div>
+        <div class="metric-label">TBS TOR</div>
         <div class="metric-value">{data['tbs tor']} %</div><br>
         <div class="metric-label">Filter Status</div>
         <div class="metric-value" style="color:#10b981;">CLEAN</div>
