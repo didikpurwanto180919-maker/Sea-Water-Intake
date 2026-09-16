@@ -1,5 +1,10 @@
 import datetime
 import zoneinfo
+import time
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 import folium
 import numpy as np
 import pandas as pd
@@ -238,6 +243,44 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
 
 
 # ==========================================
+# 2.5. MODUL NOTIFIKASI OTOMATIS (WA & EMAIL)
+# ==========================================
+def send_whatsapp_notification(phone_number: str, api_key: str, message: str) -> bool:
+    """Mengirim pesan WhatsApp menggunakan Fonnte API"""
+    if not api_key or not phone_number:
+        return False
+    url = "https://api.fonnte.com/send"
+    headers = {"Authorization": api_key}
+    payload = {"target": phone_number, "message": message, "countryCode": "62"}
+    try:
+        response = requests.post(url, headers=headers, data=payload, timeout=10)
+        return response.status_code == 200 and response.json().get("status", False)
+    except Exception:
+        return False
+
+
+def send_email_notification(sender_email: str, sender_password: str, receiver_email: str, subject: str, body: str) -> bool:
+    """Mengirim email menggunakan SMTP Gmail"""
+    if not sender_email or not sender_password or not receiver_email:
+        return False
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = sender_email
+        msg["To"] = receiver_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception:
+        return False
+
+
+# ==========================================
 # 3. MACHINE LEARNING MODEL
 # ==========================================
 @st.cache_resource
@@ -410,6 +453,19 @@ else:
         "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
+# Konfigurasi Input Notifikasi Sidebar
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔔 Pengaturan Notifikasi Darurat")
+enable_alerts = st.sidebar.checkbox("Aktifkan Auto Notification (WA & Email)", value=False)
+
+with st.sidebar.expander("Konfigurasi API & Email"):
+    wa_api_key = st.text_input("Fonnte API Token (WA)", type="password", help="Token API dari Fonnte.com")
+    wa_target = st.text_input("Nomor WhatsApp Tujuan", placeholder="81234567890", help="Awali dengan 8 tanpa angka 0 atau 62 di depan")
+    
+    email_sender = st.text_input("Email Pengirim (Gmail)", placeholder="operator.grati@gmail.com")
+    email_password = st.text_input("App Password Gmail", type="password", help="Gunakan App Password Google")
+    email_receiver = st.text_input("Email Penerima (Manajer/Shift)", placeholder="manager.pltgugrati@gmail.com")
+
 # Executive Header
 st.markdown(
     f"""
@@ -452,7 +508,34 @@ current_dt = data["raw_datetime"]
 eta_dt = current_dt + datetime.timedelta(minutes=eta_minutes)
 eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
 
-# Modul Audio Alarm
+# Pemicu Pengiriman Notifikasi Otomatis saat KRITIS & Cooldown 30 Menit
+if risk_class == 2 and not manual_override:
+    current_timestamp = time.time()
+    last_sent_time = st.session_state.get("last_alert_sent", 0)
+    
+    if enable_alerts and (current_timestamp - last_sent_time > 1800):
+        alert_message = (
+            f"🚨 *DARURAT PLTGU GRATI: SERANGAN UBUR-UBUR!* 🚨\n\n"
+            f"Waktu: {data['timestamp']}\n"
+            f"Status: KRITIS (Risiko Tinggi Penumpukan di Intake SWI)\n"
+            f"Estimasi Kedatangan (ETA): Pukul {eta_time_str} (~{eta_minutes} Menit)\n"
+            f"Suhu Laut (SST): {data['sst']} °C\n"
+            f"Beda Tekanan (ΔP): {data['delta_p']} mWC\n\n"
+            f"⚠️ *INSTRUKSI OPERATOR SHIFT:*\n"
+            f"1. Jalankan Revolving Screen/TBS High Speed.\n"
+            f"2. Aktifkan Screen Wash Pump Max Pressure.\n"
+            f"3. Siapkan langkah mitigasi derating unit jika diperlukan."
+        )
+        
+        wa_status = send_whatsapp_notification(wa_target, wa_api_key, alert_message)
+        email_subject = f"[CRITICAL ALERT] Potensi Serangan Ubur-Ubur di SWI PLTGU Grati - {data['timestamp']}"
+        email_status = send_email_notification(email_sender, email_password, email_receiver, email_subject, alert_message)
+        
+        if wa_status or email_status:
+            st.session_state["last_alert_sent"] = current_timestamp
+            st.sidebar.success("✅ Notifikasi darurat berhasil dikirim via WA/Email!")
+
+# Modul Audio Alarm HTML
 if risk_class == 2:
     sound_script = """
     <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
@@ -628,7 +711,6 @@ with col_map:
 
     st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
 
-    # Tautan Referensi BMKG Maritim & Windy.com dengan gaya neon jelas di bawah peta
     st.markdown(
         """
         <div style="text-align: center; margin-top: 12px; margin-bottom: 5px; display: flex; justify-content: center; gap: 20px;">
@@ -825,13 +907,11 @@ with c_graph1:
     )
     fig_trend.add_trace(
         go.Scatter(
-            go.Scatter(
-                x=times,
-                y=sst_trend,
-                name="SST (°C)",
-                line=dict(color="#00d2ff", width=2, dash="dash"),
-                yaxis="y2",
-            )
+            x=times,
+            y=sst_trend,
+            name="SST (°C)",
+            line=dict(color="#00d2ff", width=2, dash="dash"),
+            yaxis="y2",
         )
     )
 
