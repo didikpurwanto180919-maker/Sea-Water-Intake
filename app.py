@@ -417,7 +417,7 @@ st.markdown(
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <div class="executive-title">🤖 JARVIS PLTGU GRATI BERBASIS MACHINE LEARNING</div>
-            <div class="executive-subtitle">JELLYFISH ALERT REAL-TIME VIGILANCE INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
+            <div class="executive-subtitle">JELLYFISH EARLY-WARNING & MODULAR CONVEYOR INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
             <div class="realtime-badge">🔄 AUTO REFRESH: 1 MENIT</div>
@@ -510,7 +510,7 @@ with col_status:
             <hr style="border-color:#ef4444; margin: 8px 0;">
             <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
             <span style="font-size:11px; color:#fca5a5;">
-            1. Persiapan Pengoperasian MARVEL.<br>
+            1. Persiapan Pengoperasian Sistem Konveyor/MARVEL.<br>
             2. Jalankan Revolving screen/TBS mode <b>Continuous High Speed</b>.<br>
             3. Aktifkan Screen Wash Pump Pressure Max.<br>
             4. Manual running debris filter condensor.<br>
