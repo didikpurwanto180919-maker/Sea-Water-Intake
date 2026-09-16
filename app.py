@@ -372,7 +372,7 @@ model, train_df = train_high_precision_model()
 # ==========================================
 # 5. SIDEBAR & INPUT SELECTION
 # ==========================================
-st.sidebar.header("🤖 JELLY-MARVEL Control Panel")
+st.sidebar.header("🤖 JELLY-MARVEL INTELLIGENCE SYSTEM Control Panel")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
@@ -1096,8 +1096,6 @@ with c_graph2:
       plot_bgcolor="#1a2332",
       font=dict(color="#94a3b8"),
       margin=dict(l=10, r=10, t=10, b=30),
-      xaxis=dict(
-          title="Importance Score", color="#94a3b8"
-      ),  # Label satuan sumbu x ditambahkan di sini
+      xaxis=dict(title="Importance Score", color="#94a3b8"),
   )
   st.plotly_chart(fig_imp, use_container_width=True)
