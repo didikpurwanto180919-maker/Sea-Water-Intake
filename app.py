@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="JARVIS - Early Warning Serangan Ubur-Ubur SWI PLTGU Grati",
+    page_title="JELLY-MARVEL Intelligence System - PLTGU Grati",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -322,7 +322,7 @@ model, train_df = train_high_precision_model()
 # ==========================================
 # 4. SIDEBAR & INPUT SELECTION
 # ==========================================
-st.sidebar.header("🤖 JARVIS Control Panel")
+st.sidebar.header("🤖 JELLY-MARVEL Control Panel")
 
 manual_override = st.sidebar.checkbox(
     "🚫 FORCE NORMAL (Verifikasi Lapangan: Nihil Ubur-ubur)",
@@ -416,7 +416,7 @@ st.markdown(
 <div class="executive-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="executive-title">🤖 JARVIS PLTGU GRATI BERBASIS MACHINE LEARNING</div>
+            <div class="executive-title">🤖 JELLY-MARVEL INTELLIGENCE SYSTEM PLTGU GRATI</div>
             <div class="executive-subtitle">JELLYFISH EARLY-WARNING & MODULAR CONVEYOR INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
