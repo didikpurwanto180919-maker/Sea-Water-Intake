@@ -1,10 +1,5 @@
 import datetime
 import zoneinfo
-import time
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
 import folium
 import numpy as np
 import pandas as pd
@@ -243,40 +238,28 @@ def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
 
 
 # ==========================================
-# 2.5. MODUL NOTIFIKASI OTOMATIS (WA & EMAIL)
+# 2.B. MODUL PENGIRIM WHATSAPP NOTIFICATION
 # ==========================================
-def send_whatsapp_notification(phone_number: str, api_key: str, message: str) -> bool:
-    """Mengirim pesan WhatsApp menggunakan Fonnte API"""
-    if not api_key or not phone_number:
-        return False
-    url = "https://api.fonnte.com/send"
-    headers = {"Authorization": api_key}
-    payload = {"target": phone_number, "message": message, "countryCode": "62"}
+def send_whatsapp_notification(target_phone: str, message: str, api_token: str) -> bool:
+    """
+    Mengirim pesan WhatsApp darurat menggunakan HTTP API Gateway (Contoh: Fonnte / Wablas).
+    """
+    url = "https://api.fonnte.com/send"  # Endpoint Fonnte Gateway
+    payload = {
+        "target": target_phone,
+        "message": message,
+        "countryCode": "62",
+    }
+    headers = {
+        "Authorization": api_token
+    }
+    
     try:
-        response = requests.post(url, headers=headers, data=payload, timeout=10)
-        return response.status_code == 200 and response.json().get("status", False)
-    except Exception:
-        return False
-
-
-def send_email_notification(sender_email: str, sender_password: str, receiver_email: str, subject: str, body: str) -> bool:
-    """Mengirim email menggunakan SMTP Gmail"""
-    if not sender_email or not sender_password or not receiver_email:
-        return False
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = sender_email
-        msg["To"] = receiver_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, receiver_email, msg.as_string())
-        server.quit()
-        return True
-    except Exception:
+        response = requests.post(url, data=payload, headers=headers, timeout=10)
+        res_json = response.json()
+        return res_json.get("status", False)
+    except Exception as e:
+        print(f"Gagal mengirim WhatsApp: {e}")
         return False
 
 
@@ -453,18 +436,12 @@ else:
         "tbs_torque": st.sidebar.slider("Torsi TBS (%)", 0.0, 100.0, key="sim_torq"),
     }
 
-# Konfigurasi Input Notifikasi Sidebar
+# Konfigurasi Sidebar WhatsApp Alert
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔔 Pengaturan Notifikasi Darurat")
-enable_alerts = st.sidebar.checkbox("Aktifkan Auto Notification (WA & Email)", value=False)
-
-with st.sidebar.expander("Konfigurasi API & Email"):
-    wa_api_key = st.text_input("Fonnte API Token (WA)", type="password", help="Token API dari Fonnte.com")
-    wa_target = st.text_input("Nomor WhatsApp Tujuan", placeholder="81234567890", help="Awali dengan 8 tanpa angka 0 atau 62 di depan")
-    
-    email_sender = st.text_input("Email Pengirim (Gmail)", placeholder="operator.grati@gmail.com")
-    email_password = st.text_input("App Password Gmail", type="password", help="Gunakan App Password Google")
-    email_receiver = st.text_input("Email Penerima (Manajer/Shift)", placeholder="manager.pltgugrati@gmail.com")
+st.sidebar.header("📱 Konfigurasi WhatsApp Alert")
+wa_enabled = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=False)
+wa_token = st.sidebar.text_input("WhatsApp API Token", type="password", help="Masukkan token API WhatsApp Gateway (cth: Fonnte)")
+wa_target = st.sidebar.text_input("Nomor HP Tujuan (Shift Operator)", value="08123456789", help="Format: 08xxxxxxxxxx")
 
 # Executive Header
 st.markdown(
@@ -508,35 +485,27 @@ current_dt = data["raw_datetime"]
 eta_dt = current_dt + datetime.timedelta(minutes=eta_minutes)
 eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
 
-# Pemicu Pengiriman Notifikasi Otomatis saat KRITIS & Cooldown 30 Menit
-if risk_class == 2 and not manual_override:
-    current_timestamp = time.time()
-    last_sent_time = st.session_state.get("last_alert_sent", 0)
-    
-    if enable_alerts and (current_timestamp - last_sent_time > 1800):
-        alert_message = (
-            f"🚨 *DARURAT PLTGU GRATI: SERANGAN UBUR-UBUR!* 🚨\n\n"
-            f"Waktu: {data['timestamp']}\n"
-            f"Status: KRITIS (Risiko Tinggi Penumpukan di Intake SWI)\n"
-            f"Estimasi Kedatangan (ETA): Pukul {eta_time_str} (~{eta_minutes} Menit)\n"
-            f"Suhu Laut (SST): {data['sst']} °C\n"
-            f"Beda Tekanan (ΔP): {data['delta_p']} mWC\n\n"
-            f"⚠️ *INSTRUKSI OPERATOR SHIFT:*\n"
-            f"1. Jalankan Revolving Screen/TBS High Speed.\n"
-            f"2. Aktifkan Screen Wash Pump Max Pressure.\n"
-            f"3. Siapkan langkah mitigasi derating unit jika diperlukan."
-        )
-        
-        wa_status = send_whatsapp_notification(wa_target, wa_api_key, alert_message)
-        email_subject = f"[CRITICAL ALERT] Potensi Serangan Ubur-Ubur di SWI PLTGU Grati - {data['timestamp']}"
-        email_status = send_email_notification(email_sender, email_password, email_receiver, email_subject, alert_message)
-        
-        if wa_status or email_status:
-            st.session_state["last_alert_sent"] = current_timestamp
-            st.sidebar.success("✅ Notifikasi darurat berhasil dikirim via WA/Email!")
-
-# Modul Audio Alarm HTML
+# Modul Audio Alarm & Auto WhatsApp Notification
 if risk_class == 2:
+    # Kirim WhatsApp Otomatis jika aktif dan belum terkirim pada jam yang sama
+    if wa_enabled and wa_token and wa_target:
+        alert_key = f"wa_sent_{data['timestamp'][:13]}"
+        if st.session_state.get(alert_key, False) == False:
+            wa_message = (
+                f"🚨 *DARURAT PLTGU GRATI: SERANGAN UBUR-UBUR!* 🚨\n\n"
+                f"Waktu: {data['timestamp']}\n"
+                f"Estimasi Kedatangan (ETA): Pukul {eta_time_str} (~{eta_minutes} Menit lagi)\n"
+                f"Suhu Laut (SST): {data['sst']} °C\n"
+                f"ΔP Screen: {data['delta_p']} mWC\n\n"
+                f"*Instruksi Shift:* Segera jalankan Revolving Screen mode Continuous High Speed & Aktifkan Screen Wash Pump Max!"
+            )
+            success = send_whatsapp_notification(wa_target, wa_message, wa_token)
+            if success:
+                st.sidebar.success("✅ Notifikasi WhatsApp Darurat Berhasil Terkirim!")
+                st.session_state[alert_key] = True
+            else:
+                st.sidebar.error("❌ Gagal mengirim WhatsApp. Periksa Token/Koneksi.")
+
     sound_script = """
     <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
         <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🔔 SIRINE DARURAT DIAKTIFKAN</span><br>
