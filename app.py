@@ -628,12 +628,12 @@ with col_map:
 
     st_folium(m, width="100%", height=170, key="grati_map_scada", returned_objects=[])
 
-    # Penambahan Link Lokasi Windy di bawah maps
+    # Penambahan Link Lokasi Windy di bawah maps (Besar, Jelas, Warna Neon)
     st.markdown(
         """
-        <div style="text-align: right; margin-top: 4px;">
-            <a href="https://www.windy.com/-7.644/113.027?-7.647,113.027,16" target="_blank" style="color: #00d2ff; font-size: 11px; text-decoration: none; font-weight: 600;">
-                🌍 Buka Lokasi Detail di Windy.com ↗
+        <div style="text-align: center; margin-top: 12px; margin-bottom: 5px;">
+            <a href="https://www.windy.com/-7.644/113.027?-7.647,113.027,16" target="_blank" style="color: #00d2ff; font-size: 16px; text-decoration: none; font-weight: 800; text-shadow: 0 0 10px rgba(0, 210, 255, 0.6); letter-spacing: 0.5px;">
+                🌍 BUKA LOKASI DETAIL DI WINDY.COM ↗
             </a>
         </div>
         """,
