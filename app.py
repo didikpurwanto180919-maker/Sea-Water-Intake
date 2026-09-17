@@ -402,7 +402,7 @@ if st.sidebar.button("🚀 Test Kirim WhatsApp"):
     st.sidebar.warning("⚠️ Masukkan nomor HP atau Group ID terlebih dahulu!")
   else:
     with st.spinner("Mengirim pesan..."):
-      test_pesan = "🧪 *TEST PESAN JELLYFISH PLTGU GRATI* - Sistem Beroperasi Normal."
+      test_pesan = "🧪 *TEST PESAN JELLYFISH PLTGU GRATI - JELLYFISH EARLY WARNING INTELLIGENCE SYSTEM* - Sistem Beroperasi Normal."
       res = kirim_whatsapp(wa_token, wa_target, test_pesan)
       if res.get("status"):
         st.sidebar.success("✅ Terkirim ke Target!")
