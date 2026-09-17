@@ -372,7 +372,7 @@ model, train_df = train_high_precision_model()
 # ==========================================
 # 5. SIDEBAR & INPUT SELECTION
 # ==========================================
-st.sidebar.header("🤖 JELLYFISH INTELLIGENCE SYSTEM Control Panel")
+st.sidebar.header("🤖 JELLYFISH INTELLIGENCE SYSTEM CONTROL PANEL")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
@@ -429,7 +429,9 @@ if mode_input == "⚡ Real-Time API (Selat Madura)":
   data = get_live_realtime_ocean_data(count)
   st.sidebar.success(f"Status API: {data['status']}")
   st.sidebar.info(
-      f"⏱️ Auto Refresh: **60 detik**\n\n📅 Waktu Data: **{data['timestamp']}**"
+      f"⏱️ Auto Refresh: **60 detik**\n\n📅 Waktu Data: **{data['timestamp']}**\n\n"
+      "**Pemegang Paten:** PT PLN Indonesia Power UBP Grati\n\n"
+      "**Inventor:** Didik Purwanto"
   )
 else:
   preset = st.sidebar.selectbox(
