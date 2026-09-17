@@ -566,7 +566,7 @@ st.markdown(
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <div class="executive-title">🤖 JELLYFISH INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
-            <div class="executive-subtitle">JELLYFISH EARLY-WARNING & MODULAR CONVEYOR INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
+            <div class="executive-subtitle">JELLYFISH EARLY WARNING INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
             <div class="realtime-badge">🔄 AUTO REFRESH: 1 MENIT</div>
@@ -660,11 +660,11 @@ with col_status:
             <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
             <span style="font-size:11px; color:#fca5a5;">
             1. Verifikasi aktual lapangan kondisi sea water intake<br>
-            2. Persiapan pengoperasian sistem konveyor MARVEL<br>
+            2. Persiapan pengoperasian sistem penyaringan/konveyor intake<br>
             3. Jalankan revolving screen/TBS mode continuous high speed<br>
             4. Aktifkan screen wash pump pressure max.<br>
             5. Manual running debris filter condensor<br>
-            6. Pengamatan Jellly Boom screen dan DP all strainer cooling system<br>
+            6. Pengamatan Jelly Boom screen dan DP all strainer cooling system<br>
             7. Optimalkan pengaturan valve outlet kondensor<br>
             8. Amati vacuum condensor ST<br>
             9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian<br>
@@ -821,11 +821,11 @@ if wa_active and risk_class == 2 and not manual_override:
         f"Estimasi Tiba: Pukul {eta_time_str} (~{eta_minutes} Menit)\n\n"
         "🔴 *MANDATORI OPERATOR SHIFT:*\n"
         "1. Verifikasi aktual lapangan kondisi sea water intake\n"
-        "2. Persiapan pengoperasian sistem konveyor MARVEL\n"
+        "2. Persiapan pengoperasian sistem penyaringan/konveyor intake\n"
         "3. Jalankan revolving screen/TBS mode continuous high speed\n"
         "4. Aktifkan screen wash pump pressure max.\n"
         "5. Manual running debris filter condensor\n"
-        "6. Pengamatan Jellly Boom screen dan DP all strainer cooling system\n"
+        "6. Pengamatan Jelly Boom screen dan DP all strainer cooling system\n"
         "7. Optimalkan pengaturan valve outlet kondensor\n"
         "8. Amati vacuum condensor ST\n"
         "9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian\n"
