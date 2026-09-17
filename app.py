@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="JELLYFISH Intelligence System - PLTGU Grati",
+    page_title="JELLYFISH ALERT INTELLIGENCE SYSTEM - PLTGU Grati",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -372,7 +372,7 @@ model, train_df = train_high_precision_model()
 # ==========================================
 # 5. SIDEBAR & INPUT SELECTION
 # ==========================================
-st.sidebar.header("🤖 JELLYFISH INTELLIGENCE SYSTEM CONTROL PANEL")
+st.sidebar.header("🤖 JELLYFISH ALERT INTELLIGENCE SYSTEM CONTROL PANEL")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
@@ -567,7 +567,7 @@ st.markdown(
 <div class="executive-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="executive-title">🤖 JELLYFISH INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
+            <div class="executive-title">🤖 JELLYFISH ALERT INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
             <div class="executive-subtitle">JELLYFISH EARLY WARNING INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
