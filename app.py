@@ -378,7 +378,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
 wa_active = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=True)
 wa_token = st.sidebar.text_input(
-    "WhatsApp API Token (Fonnte)", type="password", value="9WEJQ8pKRJsRU5xKNyBs"
+    "WhatsApp API Token (Fonnte)", type="password", value="2DS8Xq8Bi3cDwLeQCT6Y"
 )
 
 wa_destination_type = st.sidebar.radio(
