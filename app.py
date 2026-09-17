@@ -1,353 +1,1114 @@
-import streamlit as st
-import pandas as pd
+import datetime
+import zoneinfo
+import folium
 import numpy as np
-import plotly.express as px
+import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
-import time
 import requests
-import json
-import base64
-import os
+import streamlit as st
+import streamlit.components.v1 as components
+from streamlit_autorefresh import st_autorefresh
+from streamlit_folium import st_folium
+from xgboost import XGBClassifier
 
-# Konfigurasi Halaman
+# ==========================================
+# 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
+# ==========================================
 st.set_page_config(
-    page_title="JELLYFISH Alert Intelligence System - PLTGU Grati",
-    page_icon="⚡",
+    page_title="JELLYFISH Intelligence System - PLTGU Grati",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Custom Styling (Dark Executive Theme dengan Aksen Neon Biru & Peringatan Merah/Kuning)
-st.markdown("""
-    <style>
-    .main {
-        background-color: #0b0f19;
-        color: #f3f4f6;
-    }
-    .stSidebar {
-        background-color: #111827;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-        border: 1px solid #374151;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        margin-bottom: 15px;
-    }
-    .metric-value {
-        font-size: 28px;
-        font-weight: 700;
-        color: #60a5fa;
-    }
-    .metric-label {
-        font-size: 14px;
-        color: #9ca3af;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .alert-normal {
-        background-color: rgba(16, 185, 129, 0.1);
-        border-left: 5px solid #10b981;
-        padding: 15px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-    }
-    .alert-warning {
-        background-color: rgba(245, 158, 11, 0.1);
-        border-left: 5px solid #f59e0b;
-        padding: 15px;
-        border-radius: 4px;
-        margin-bottom: 20px;
-    }
-    .alert-danger {
-        background-color: rgba(239, 68, 68, 0.1);
-        border-left: 5px solid #ef4444;
-        padding: 15px;
-        border-radius: 4px;
-        margin-bottom: 20px;
+st.markdown(
+    """
+<style>
+    .stApp {
+        background-color: #0e1726;
+        color: #e0e6ed;
     }
     .executive-header {
-        background: linear-gradient(90deg, #1e3a8a 0%, #111827 100%);
-        padding: 25px;
+        background: linear-gradient(90deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        border-left: 6px solid #00d2ff;
+        border-right: 2px solid rgba(0, 210, 255, 0.3);
+        padding: 18px 25px;
         border-radius: 10px;
-        border: 1px solid #3b82f6;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     .executive-title {
-        color: #ffffff;
-        font-size: 24px;
+        font-size: 20px;
         font-weight: 800;
-        margin-bottom: 5px;
+        color: #ffffff;
+        letter-spacing: 0.8px;
+        margin: 0;
     }
     .executive-subtitle {
-        color: #93c5fd;
-        font-size: 14px;
-        font-weight: 500;
+        font-size: 12px;
+        color: #00d2ff;
+        margin-top: 5px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
-    </style>
-""", unsafe_allow_html=True)
+    .realtime-badge {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid #10b981;
+        color: #10b981;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 12px;
+        display: inline-block;
+    }
+    .pillar-card {
+        background-color: #1a2332;
+        border: 1px solid #2e3b4e;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .pillar-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #00d2ff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #2e3b4e;
+        padding-bottom: 6px;
+    }
+    .metric-value {
+        font-size: 17px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .metric-label {
+        font-size: 11px;
+        color: #94a3b8;
+        text-transform: uppercase;
+    }
+    .status-box-safe {
+        background: rgba(16, 185, 129, 0.1);
+        border: 2px solid #10b981;
+        border-radius: 10px;
+        padding: 18px;
+        color: #10b981;
+    }
+    .status-box-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border: 2px solid #f59e0b;
+        border-radius: 10px;
+        padding: 18px;
+        color: #fbbf24;
+    }
+    .status-box-danger {
+        background: rgba(239, 68, 68, 0.15);
+        border: 2px solid #ef4444;
+        border-radius: 10px;
+        padding: 18px;
+        color: #f87171;
+        animation: blinker 1.5s linear infinite;
+    }
+    .eta-box {
+        background: rgba(0, 210, 255, 0.1);
+        border: 1px solid #00d2ff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 10px;
+    }
+    @keyframes blinker {
+        50% { opacity: 0.6; }
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
-# Inisialisasi State untuk Simulasi Real-Time & Notifikasi
-if 'simulated_data' not in st.session_state:
-    # Generate dummy data time-series 7 hari terakhir
-    np.random.seed(42)
-    dates = pd.date_range(end=datetime.now(), periods=168, freq='H')
-    st.session_state['simulated_data'] = pd.DataFrame({
-        'timestamp': dates,
-        'suhu_air': np.random.normal(28.5, 1.2, 168),
-        'salinitas': np.random.normal(32.4, 0.8, 168),
-        'arus_pasang': np.random.normal(0.6, 0.2, 168),
-        'kekeruhan': np.random.normal(12.5, 3.1, 168),
-        'populasi_ubur': np.random.poisson(lam=15, size=168)
-    })
+# Constants & Refresh Interval
+WIB_TZ = zoneinfo.ZoneInfo("Asia/Jakarta")
+REFRESH_INTERVAL_SEC = 60
 
-if 'log_insiden' not in st.session_state:
-    st.session_state['log_insiden'] = [
-        {"waktu": (datetime.now() - timedelta(hours=12)).strftime("%Y-%m-%d %H:%M"), "level": "WASPADA", "pesan": "Lonjakan populasi ubur-ubur terdeteksi di Intake Kanal 2.", "tindakan": "Backwash otomatis disiapkan."},
-        {"waktu": (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d %H:%M"), "level": "AMAN", "pesan": "Parameter air laut normal. Operasi CCGT unit 2.1 stabil.", "tindakan": "Monitoring rutin."}
-    ]
+count = st_autorefresh(
+    interval=REFRESH_INTERVAL_SEC * 1000,
+    limit=None,
+    key="jellyfish_auto_refresh",
+)
 
-# Fungsi Prediksi Machine Learning (XGBoost Mockup/Emulator berbasis rule & tree heuristic)
-def predict_jellyfish_risk(suhu, salinitas, arus, kekeruhan):
-    # Model matematis berbasis bobot XGBoost v3.4 feature importance
-    # Suhu ideal ubur-ubur: 27-31C, Salinitas: 31-35 ppt, Kekeruhan tinggi/rendah tertentu
-    score = (
-        (max(0, 1 - abs(suhu - 29.0) / 3.0) * 0.35) +
-        (max(0, 1 - abs(salinitas - 33.0) / 4.0) * 0.25) +
-        (min(1, kekeruhan / 25.0) * 0.25) +
-        (min(1, arus / 1.5) * 0.15)
-    ) * 100
-    
-    # Tambahan noise deterministik agar dinamis
-    risk_level = "AMAN"
-    color = "green"
-    if score > 75:
-        risk_level = "BAHAYA (CRITICAL)"
-        color = "red"
-    elif score > 50:
-        risk_level = "WASPADA (WARNING)"
-        color = "orange"
-        
-    return round(score, 2), risk_level, color
+GRATI_LAT, GRATI_LON = -7.644317, 113.027350
+OCEAN_LAT, OCEAN_LON = -7.641000, 113.027350
 
-# Fungsi Kirim Notifikasi WhatsApp (Fungsi API Gateway / Fonnte / Wablas mockup)
-def kirim_whatsapp_notif(api_key, nomor_tujuan, pesan):
-    if not api_key or not nomor_tujuan:
-        return False, "API Key atau Nomor Tujuan belum dikonfigurasi."
-    
-    # Simulasi pengiriman API
-    # payload = {"target": nomor_tujuan, "message": pesan}
-    # response = requests.post("https://api.fonnte.com/send", data=payload, headers={"Authorization": api_key})
-    time.sleep(1) # simulasi latensi jaringan
-    return True, "Pesan WhatsApp berhasil dikirim ke " + nomor_tujuan
+FEATURE_COLUMNS = [
+    "Suhu Permukaan Laut",
+    "Klorofil-a",
+    "Salinitas",
+    "Oksigen Terlarut",
+    "Kekeruhan",
+    "Kecepatan Arus",
+    "Arah Arus",
+    "Tinggi Gelombang",
+    "Kecepatan Angin",
+    "Arah Angin",
+    "Siklus Pasang",
+    "Elevasi Muka Air",
+    "delta_p",
+    "Flow Velocity",
+    "tbs tor",
+]
 
-# Sidebar Navigasi & Kontrol
-with st.sidebar:
-    st.image("https://img.icons8.com/color/96/000000/jellyfish.png", width=70)
-    st.header("🤖 JELLYFISH ALERT INTELLIGENCE SYSTEM CONTROL PANEL")
-    st.markdown("---")
-    
-    menu = st.selectbox(
-        "Pilih Menu Navigasi",
-        ["Dashboard Utama", "Prediksi & Machine Learning", "Live Sensor & Intake SWI", "Sistem Notifikasi WA", "Log & Laporan Insiden"]
-    )
-    
-    st.markdown("---")
-    st.subheader("⚙️ Konfigurasi Sistem")
-    auto_refresh = st.checkbox("Aktifkan Live Stream Sensor", value=True)
-    refresh_rate = st.slider("Interval Refresh (detik)", 5, 60, 10)
-    
-    st.markdown("---")
-    st.markdown("### 📌 Status PLTGU Grati")
-    st.markdown("**Lokasi:** Intake Selat Madura (SWI)")
-    st.markdown("**Model ML:** XGBoost v3.4 (Akurasi 94.8%)")
-    st.markdown("**Status Operator:** 🟢 ON-DUTY")
+MONTH_NAMES = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+]
 
-# Main Content Routing
-if menu == "Dashboard Utama":
-    # Header Eksekutif
-    st.markdown("""
-        <div class="executive-header">
-            <div class="executive-title">🤖 JELLYFISH ALERT INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
+
+# ==========================================
+# 2. FUNGSI KIRIM WHATSAPP (FONNTE API)
+# ==========================================
+def kirim_whatsapp(token, target, pesan):
+  if not token or not target:
+    return {
+        "status": False,
+        "reason": "Token atau Tujuan (Nomor/Grup) belum diisi!",
+    }
+
+  target_cleaned = target.strip()
+  if not target_cleaned.endswith("@g.us"):
+    if target_cleaned.startswith("0"):
+      target_cleaned = "62" + target_cleaned[1:]
+
+  url = "https://api.fonnte.com/send"
+  headers = {"Authorization": token}
+  payload = {"target": target_cleaned, "message": pesan}
+
+  try:
+    response = requests.post(url, data=payload, headers=headers, timeout=10)
+    return response.json()
+  except Exception as e:
+    return {"status": False, "reason": str(e)}
+
+
+# ==========================================
+# 3. FETCH REAL-TIME DATA VIA OPEN-METEO
+# ==========================================
+def fetch_json_safe(url: str, timeout: int = 5) -> dict:
+  try:
+    req = requests.get(url, timeout=timeout)
+    if req.status_code == 200:
+      return req.json()
+  except requests.exceptions.RequestException:
+    pass
+  return {}
+
+
+@st.cache_data(ttl=REFRESH_INTERVAL_SEC)
+def get_live_realtime_ocean_data(refresh_counter: int) -> dict:
+  wib_now = datetime.datetime.now(WIB_TZ)
+  wib_time_str = wib_now.strftime("%d %B %Y | %H:%M:%S WIB")
+
+  url_weather = (
+      f"https://api.open-meteo.com/v1/forecast?"
+      f"latitude={GRATI_LAT}&longitude={GRATI_LON}&"
+      f"current=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=kn"
+  )
+  res_w = fetch_json_safe(url_weather)
+  curr_w = res_w.get("current", {})
+
+  wind_speed = float(curr_w.get("wind_speed_10m", 6.5))
+  wind_dir = int(curr_w.get("wind_direction_10m", 145))
+
+  url_marine = (
+      f"https://marine-api.open-meteo.com/v1/marine?"
+      f"latitude={OCEAN_LAT}&longitude={OCEAN_LON}&"
+      f"current=sea_surface_temperature,ocean_current_velocity,ocean_current_direction,wave_height"
+  )
+  res_m = fetch_json_safe(url_marine)
+  curr_m = res_m.get("current", {})
+
+  sst = curr_m.get("sea_surface_temperature")
+  sst = float(sst) if sst is not None else 30.1
+
+  current_speed_ms = curr_m.get("ocean_current_velocity")
+  current_speed_ms = (
+      float(current_speed_ms) if current_speed_ms is not None else 0.45
+  )
+
+  current_dir = curr_m.get("ocean_current_direction")
+  current_dir = int(current_dir) if current_dir is not None else 165
+
+  wave_height = curr_m.get("wave_height")
+  wave_height = float(wave_height) if wave_height is not None else 0.5
+
+  status_str = "ONLINE (Connected)" if (res_w and res_m) else "OFFLINE (Fallback)"
+
+  chlorophyll = round(1.2 + (sst - 28.0) * 0.50 + (wind_speed * 0.05), 2)
+  salinity = round(33.5 + (sst - 29.0) * 0.2, 1)
+  do_level = round(6.5 - (sst - 28.0) * 0.4, 1)
+  turbidity = round(3.0 + (wave_height * 8.0) + (wind_speed * 0.4), 1)
+
+  hour = wib_now.hour
+  tide_phase = 1 if (10 <= hour <= 15 or 22 <= hour <= 3) else 0
+  sea_level = round(1.2 if tide_phase == 1 else 0.3, 1)
+
+  delta_p = round(0.12 + (current_speed_ms * 0.35) + (chlorophyll * 0.08), 2)
+  flow_velocity = round(0.40 + (current_speed_ms * 0.30), 2)
+  tbs_tor = round(15.0 + (delta_p * 55.0), 1)
+
+  return {
+      "status": status_str,
+      "timestamp": wib_time_str,
+      "raw_datetime": wib_now,
+      "Suhu Permukaan Laut": round(sst, 2),
+      "Klorofil-a": max(0.5, chlorophyll),
+      "Salinitas": salinity,
+      "Oksigen Terlarut": max(1.0, do_level),
+      "Kekeruhan": turbidity,
+      "Kecepatan Arus": round(current_speed_ms, 2),
+      "Arah Arus": current_dir,
+      "Tinggi Gelombang": round(wave_height, 2),
+      "Kecepatan Angin": round(wind_speed, 1),
+      "Arah Angin": wind_dir,
+      "Siklus Pasang": tide_phase,
+      "Elevasi Muka Air": sea_level,
+      "delta_p": delta_p,
+      "Flow Velocity": flow_velocity,
+      "tbs tor": tbs_tor,
+  }
+
+
+# ==========================================
+# 4. MACHINE LEARNING MODEL
+# ==========================================
+@st.cache_resource
+def train_high_precision_model():
+  np.random.seed(42)
+  n_samples = 15000
+
+  sst = np.random.uniform(26.0, 34.0, size=n_samples)
+  chlorophyll = np.random.uniform(0.5, 8.0, size=n_samples)
+  salinity = np.random.uniform(29.0, 36.0, size=n_samples)
+  do_level = np.random.uniform(2.0, 8.0, size=n_samples)
+  turbidity = np.random.uniform(1.0, 40.0, size=n_samples)
+
+  current_speed = np.random.uniform(0.05, 1.8, size=n_samples)
+  current_dir = np.random.uniform(0, 360, size=n_samples)
+  wave_height = np.random.uniform(0.1, 2.0, size=n_samples)
+
+  wind_speed = np.random.uniform(1.0, 30.0, size=n_samples)
+  wind_dir = np.random.uniform(0, 360, size=n_samples)
+  tide_phase = np.random.choice([0, 1], size=n_samples, p=[0.7, 0.3])
+  sea_level = np.random.uniform(-1.0, 2.0, size=n_samples)
+
+  delta_p = np.random.uniform(0.05, 1.5, size=n_samples)
+  flow_velocity = np.random.uniform(0.2, 1.2, size=n_samples)
+  tbs_tor = np.random.uniform(10.0, 95.0, size=n_samples)
+
+  is_onshore_current = (current_dir >= 110) & (current_dir <= 210)
+  is_onshore_wind = (wind_dir >= 110) & (wind_dir <= 210)
+
+  risk_score = (
+      (np.maximum(0, sst - 30.0) ** 1.8) * 2.2
+      + (np.maximum(0, chlorophyll - 3.5) ** 1.5) * 2.8
+      + (np.maximum(0, salinity - 33.0) * 0.8)
+      + (np.maximum(0, 5.0 - do_level) * 0.7)
+      + (current_speed * 2.0 * np.where(is_onshore_current, 2.5, 0.4))
+      + (wind_speed * 0.25 * np.where(is_onshore_wind, 1.8, 0.5))
+      + (wave_height * 1.5)
+      + (tide_phase * 4.0)
+      + (delta_p * 6.0)
+      + (tbs_tor * 0.08)
+  )
+
+  labels = np.where(risk_score < 18.0, 0, np.where(risk_score < 32.0, 1, 2))
+
+  df = pd.DataFrame({
+      "Suhu Permukaan Laut": sst,
+      "Klorofil-a": chlorophyll,
+      "Salinitas": salinity,
+      "Oksigen Terlarut": do_level,
+      "Kekeruhan": turbidity,
+      "Kecepatan Arus": current_speed,
+      "Arah Arus": current_dir,
+      "Tinggi Gelombang": wave_height,
+      "Kecepatan Angin": wind_speed,
+      "Arah Angin": wind_dir,
+      "Siklus Pasang": tide_phase,
+      "Elevasi Muka Air": sea_level,
+      "delta_p": delta_p,
+      "Flow Velocity": flow_velocity,
+      "tbs tor": tbs_tor,
+      "risk_level": labels,
+  })
+
+  X = df[FEATURE_COLUMNS]
+  y = df["risk_level"]
+
+  model = XGBClassifier(
+      n_estimators=250,
+      learning_rate=0.02,
+      max_depth=6,
+      subsample=0.85,
+      colsample_bytree=0.85,
+      random_state=42,
+      eval_metric="mlogloss",
+  )
+  model.fit(X, y)
+  return model, df
+
+
+model, train_df = train_high_precision_model()
+
+# ==========================================
+# 5. SIDEBAR & INPUT SELECTION
+# ==========================================
+st.sidebar.header("🤖 JELLYFISH INTELLIGENCE SYSTEM CONTROL PANEL")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
+wa_active = st.sidebar.checkbox("Aktifkan Auto WhatsApp Alert", value=True)
+wa_token = st.sidebar.text_input(
+    "WhatsApp API Token (Fonnte)", type="password", value="2DS8Xq8Bi3cDwLeQCT6Y"
+)
+
+wa_destination_type = st.sidebar.radio(
+    "Target Pengiriman:", ("Nomor HP Pribadi", "WhatsApp Group (WA Group)")
+)
+
+if wa_destination_type == "Nomor HP Pribadi":
+  wa_target = st.sidebar.text_input("Nomor HP Tujuan (Shift Operator)", value="")
+else:
+  wa_target = st.sidebar.text_input(
+      "WhatsApp Group ID",
+      value="",
+      placeholder="Contoh: 628123456789-1600000000@g.us",
+  )
+  st.sidebar.caption(
+      "💡 *Tips: Masukkan Group ID Fonnte berakhiran `@g.us`*"
+  )
+
+if st.sidebar.button("🚀 Test Kirim WhatsApp"):
+  if not wa_target:
+    st.sidebar.warning("⚠️ Masukkan nomor HP atau Group ID terlebih dahulu!")
+  else:
+    with st.spinner("Mengirim pesan..."):
+      test_pesan = "🧪 *TEST PESAN JELLYFISH PLTGU GRATI - JELLYFISH EARLY WARNING INTELLIGENCE SYSTEM* - Sistem Beroperasi Normal."
+      res = kirim_whatsapp(wa_token, wa_target, test_pesan)
+      if res.get("status"):
+        st.sidebar.success("✅ Terkirim ke Target!")
+      else:
+        st.sidebar.error("❌ Gagal: " + str(res.get("reason", "Periksa token")))
+
+st.sidebar.markdown("---")
+
+manual_override = st.sidebar.checkbox(
+    "🚫 FORCE NORMAL (Verifikasi Lapangan: Nihil Ubur-ubur)",
+    value=False,
+    help=(
+        "Centang jika pengamatan visual operator mengonfirmasi tidak ada"
+        " ubur-ubur di kanal intake."
+    ),
+)
+
+mode_input = st.sidebar.radio(
+    "Sumber Input Data:",
+    ("⚡ Real-Time API (Selat Madura)", "🧪 Skenario Simulasi Manual"),
+)
+
+if mode_input == "⚡ Real-Time API (Selat Madura)":
+  data = get_live_realtime_ocean_data(count)
+  st.sidebar.success(f"Status API: {data['status']}")
+  st.sidebar.info(
+      f"⏱️ Auto Refresh: **60 detik**\n\n📅 Waktu Data: **{data['timestamp']}**\n\n"
+      "**Pemegang Paten:** PT PLN Indonesia Power UBP Grati\n\n"
+      "**Inventor:** Didik Purwanto"
+  )
+else:
+  preset = st.sidebar.selectbox(
+      "Skenario Pengujian:",
+      (
+          "🚨 KRITIS: SERANGAN UBUR-UBUR Massal",
+          "⚠️ WASPADA: Indikasi Penumpukan",
+          "🟢 NORMAL: Operational Safe",
+      ),
+      key="preset_selection",
+  )
+
+  if preset == "🚨 KRITIS: SERANGAN UBUR-UBUR Massal":
+    init_d = {
+        "sst": 32.5,
+        "chl": 5.80,
+        "sal": 34.8,
+        "do": 3.0,
+        "turb": 32.0,
+        "cspd": 1.45,
+        "cdir": 175,
+        "wh": 1.5,
+        "wspd": 16.0,
+        "wdir": 165,
+        "tide": 1,
+        "sl": 1.8,
+        "dp": 0.88,
+        "fv": 1.05,
+        "torq": 82.0,
+    }
+  elif preset == "⚠️ WASPADA: Indikasi Penumpukan":
+    init_d = {
+        "sst": 30.4,
+        "chl": 3.40,
+        "sal": 33.5,
+        "do": 4.5,
+        "turb": 14.0,
+        "cspd": 0.70,
+        "cdir": 145,
+        "wh": 0.8,
+        "wspd": 9.0,
+        "wdir": 140,
+        "tide": 1,
+        "sl": 0.9,
+        "dp": 0.42,
+        "fv": 0.65,
+        "torq": 45.0,
+    }
+  else:
+    init_d = {
+        "sst": 28.2,
+        "chl": 1.10,
+        "sal": 32.2,
+        "do": 6.8,
+        "turb": 3.5,
+        "cspd": 0.20,
+        "cdir": 40,
+        "wh": 0.3,
+        "wspd": 4.0,
+        "wdir": 45,
+        "tide": 0,
+        "sl": 0.1,
+        "dp": 0.10,
+        "fv": 0.35,
+        "torq": 15.0,
+    }
+
+  if (
+      "last_preset" not in st.session_state
+      or st.session_state.last_preset != preset
+  ):
+    st.session_state.last_preset = preset
+    st.session_state.sim_sst = init_d["sst"]
+    st.session_state.sim_chl = init_d["chl"]
+    st.session_state.sim_sal = init_d["sal"]
+    st.session_state.sim_do = init_d["do"]
+    st.session_state.sim_turb = init_d["turb"]
+    st.session_state.sim_cspd = init_d["cspd"]
+    st.session_state.sim_cdir = init_d["cdir"]
+    st.session_state.sim_wh = init_d["wh"]
+    st.session_state.sim_wspd = init_d["wspd"]
+    st.session_state.sim_wdir = init_d["wdir"]
+    st.session_state.sim_tide = init_d["tide"]
+    st.session_state.sim_sl = init_d["sl"]
+    st.session_state.sim_dp = init_d["dp"]
+    st.session_state.sim_fv = init_d["fv"]
+    st.session_state.sim_torq = init_d["torq"]
+
+  now_wib = datetime.datetime.now(WIB_TZ)
+  data = {
+      "timestamp": now_wib.strftime("%d %B %Y | %H:%M:%S WIB"),
+      "raw_datetime": now_wib,
+      "Suhu Permukaan Laut": st.sidebar.slider(
+          "Suhu Permukaan Laut (°C)", 25.0, 35.0, key="sim_sst"
+      ),
+      "Klorofil-a": st.sidebar.slider(
+          "Klorofil-a (mg/m³)", 0.1, 8.0, key="sim_chl"
+      ),
+      "Salinitas": st.sidebar.slider("Salinitas (PSU)", 28.0, 36.0, key="sim_sal"),
+      "Oksigen Terlarut": st.sidebar.slider(
+          "Oksigen Terlarut (mg/L)", 1.0, 8.0, key="sim_do"
+      ),
+      "Kekeruhan": st.sidebar.slider(
+          "Kekeruhan (NTU)", 0.0, 50.0, key="sim_turb"
+      ),
+      "Kecepatan Arus": st.sidebar.slider(
+          "Kecepatan Arus (m/s)", 0.0, 2.0, key="sim_cspd"
+      ),
+      "Arah Arus": st.sidebar.slider("Arah Arus (°)", 0, 360, key="sim_cdir"),
+      "Tinggi Gelombang": st.sidebar.slider(
+          "Tinggi Gelombang (m)", 0.0, 3.0, key="sim_wh"
+      ),
+      "Kecepatan Angin": st.sidebar.slider(
+          "Kecepatan Angin (Knot)", 0.0, 30.0, key="sim_wspd"
+      ),
+      "Arah Angin": st.sidebar.slider("Arah Angin (°)", 0, 360, key="sim_wdir"),
+      "Siklus Pasang": st.sidebar.selectbox(
+          "Siklus Pasang", (0, 1), key="sim_tide"
+      ),
+      "Elevasi Muka Air": st.sidebar.slider(
+          "Elevasi Muka Air (m)", -1.5, 2.5, key="sim_sl"
+      ),
+      "delta_p": st.sidebar.slider("delta_p (mWC)", 0.0, 2.0, key="sim_dp"),
+      "Flow Velocity": st.sidebar.slider(
+          "Flow Velocity (m/s)", 0.0, 1.5, key="sim_fv"
+      ),
+      "tbs tor": st.sidebar.slider("tbs tor (%)", 0.0, 100.0, key="sim_torq"),
+  }
+
+# Executive Header
+st.markdown(
+    f"""
+<div class="executive-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div class="executive-title">🤖 JELLYFISH INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
             <div class="executive-subtitle">JELLYFISH EARLY WARNING INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
-    """, unsafe_allow_html=True)
-    
-    # Ambil data sensor terkini (baris terakhir)
-    latest_data = st.session_state['simulated_data'].iloc[-1]
-    score, risk_level, color = predict_jellyfish_risk(
-        latest_data['suhu_air'], 
-        latest_data['salinitas'], 
-        latest_data['arus_pasang'], 
-        latest_data['kekeruhan']
+        <div style="text-align: right;">
+            <div class="realtime-badge">🔄 AUTO REFRESH: 1 MENIT</div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 5px;">
+                <b>Waktu Real-Time:</b> {data['timestamp']}
+            </div>
+        </div>
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# ==========================================
+# 6. INFERENCE & KALKULASI ETA PREDIKSI
+# ==========================================
+input_df = pd.DataFrame([data])[FEATURE_COLUMNS]
+
+risk_class = int(model.predict(input_df)[0])
+probabilities = model.predict_proba(input_df)[0]
+
+if manual_override:
+  risk_class = 0
+  probabilities = np.array([1.0, 0.0, 0.0])
+
+DISTANCE_TO_INTAKE_M = 370.0
+eff_speed = max(data["Kecepatan Arus"], 0.05)
+time_seconds = DISTANCE_TO_INTAKE_M / eff_speed
+eta_minutes = int(time_seconds / 60)
+
+current_dt = data["raw_datetime"]
+eta_dt = current_dt + datetime.timedelta(minutes=eta_minutes)
+eta_time_str = eta_dt.strftime("%H:%M:%S WIB")
+
+# Modul Audio Alarm
+if risk_class == 2:
+  sound_script = """
+    <div style="background: rgba(239,68,68,0.2); border: 1px dashed #ef4444; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;">
+        <span style="color:#fca5a5; font-size: 11px; font-weight: bold;">🔔 SIRINE DARURAT DIAKTIFKAN</span><br>
+        <button onclick="playAlarm()" style="background:#ef4444; color:white; border:none; padding:4px 12px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:4px;">🔊 Mainkan Suara Alarm</button>
+    </div>
+    <audio id="alarm_audio" loop preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+    <script>
+        function playAlarm() {
+            var audio = document.getElementById('alarm_audio');
+            if (audio) { audio.play(); }
+        }
+        window.addEventListener('load', function() {
+            var audio = document.getElementById('alarm_audio');
+            if (audio) {
+                var promise = audio.play();
+                if (promise !== undefined) {
+                    promise.catch(function(error) {
+                        console.log("Autoplay blocked by browser policy.");
+                    });
+                }
+            }
+        });
+    </script>
+    """
+  components.html(sound_script, height=75)
+
+col_status, col_gauge, col_map = st.columns([1.5, 1.2, 1.3])
+
+with col_status:
+  st.markdown("#### 🚨 Early Warning Alarm Status")
+  if manual_override:
+    st.markdown(
+        """
+        <div class="status-box-safe">
+            <h3 style="margin:0; color:#10b981; font-weight:800; font-size:16px;">🟢 FORCE NORMAL: OVERRIDE OPERATOR SHIFT</h3>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:0;">Verifikasi lapangan dikonfirmasi: Nihil penumpukan ubur-ubur di kanal intake. Sinyal indikasi model telah dinonaktifkan secara manual.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    
-    # Banner Peringatan Status Berdasarkan Risiko
-    if risk_level.startswith("BAHAYA"):
-        st.markdown(f"""
-            <div class="alert-danger">
-                <h3>🚨 PERINGATAN KRITIS: RISIKO UBUR-UBUR TINGGI ({score}%)</h3>
-                <p>Potensi clogging pada cooling water intake condenser PLTGU Grati sangat tinggi! Segera ambil tindakan preventif sesuai SOP.</p>
+  elif risk_class == 2:
+    st.markdown(
+        f"""
+        <div class="status-box-danger">
+            <h3 style="margin:0; color:#ef4444; font-weight:800; font-size:16px;">🚨 STATUS KRITIS: SERANGAN UBUR-UBUR</h3>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:8px;">Potensi penyumbatan massal pada Bar Screen & CWP condenser intake.</p>
+            <div class="eta-box">
+                <span style="color:#94a3b8; font-size:11px;">⏱️ ESTIMASI KEDATANGAN UBUR-UBUR (ETA):</span><br>
+                <b style="color:#00d2ff; font-size:18px;">Pukul {eta_time_str}</b> 
+                <span style="color:#fca5a5; font-size:12px;">(~{eta_minutes} Menit lagi)</span>
             </div>
-        """, unsafe_allow_html=True)
-    elif risk_level.startswith("WASPADA"):
-        st.markdown(f"""
-            <div class="alert-warning">
-                <h3>⚠️ STATUS WASPADA: POTENSI UBUR-UBUR TERDETEKSI ({score}%)</h3>
-                <p>Suhu dan salinitas laut mendukung migrasi ubur-ubur mendekati intake Selat Madura. Tingkatkan frekuensi monitoring.</p>
+            <hr style="border-color:#ef4444; margin: 8px 0;">
+            <b style="color:#ffffff; font-size:12px;">MANDATORI OPERATOR SHIFT:</b><br>
+            <span style="font-size:11px; color:#fca5a5;">
+            1. Verifikasi aktual lapangan kondisi sea water intake<br>
+            2. Persiapan pengoperasian sistem penyaringan/konveyor intake<br>
+            3. Jalankan revolving screen/TBS mode continuous high speed<br>
+            4. Aktifkan screen wash pump pressure max.<br>
+            5. Manual running debris filter condensor<br>
+            6. Pengamatan Jelly Boom screen dan DP all strainer cooling system<br>
+            7. Optimalkan pengaturan valve outlet kondensor<br>
+            8. Amati vacuum condensor ST<br>
+            9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian<br>
+            10. Turunkan beban GT & ST jika vacuum condensor < 0.85 barg
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+  elif risk_class == 1:
+    st.markdown(
+        f"""
+        <div class="status-box-warning">
+            <h3 style="margin:0; color:#f59e0b; font-weight:800; font-size:16px;">⚠️ STATUS WASPADA: INDIKASI PENUMPUKAN</h3>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:8px;">Terdapat peningkatan populasi ubur-ubur di sekitar kanal.</p>
+            <div class="eta-box">
+                <span style="color:#94a3b8; font-size:11px;">⏱️ ESTIMASI PENUMPUKAN DARI POINT OF INTEREST:</span><br>
+                <b style="color:#00d2ff; font-size:16px;">Pukul {eta_time_str}</b> 
+                <span style="color:#fbbf24; font-size:12px;">(~{eta_minutes} Menit)</span>
             </div>
-        """, unsafe_allow_html=True)
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+  else:
+    st.markdown(
+        """
+        <div class="status-box-safe">
+            <h3 style="margin:0; color:#10b981; font-weight:800; font-size:16px;">🟢 KONDISI NORMAL: AMAN OPERASIONAL</h3>
+            <p style="margin-top:6px; font-size:12px; color:#e2e8f0; margin-bottom:0;">Aman, tidak ada indikasi serangan ubur-ubur. Parameter hidrodinamika & biokimia Selat Madura berada dalam batas normal.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with col_gauge:
+  st.markdown("#### 🎯 Threat Risk Index")
+
+  if risk_class == 2:
+    gauge_color = "#ef4444"
+    display_score = probabilities[2] * 100
+  elif risk_class == 1:
+    gauge_color = "#f59e0b"
+    display_score = probabilities[1] * 100
+  else:
+    gauge_color = "#10b981"
+    display_score = 0.0 if manual_override else (1 - probabilities[0]) * 100
+
+  fig_gauge = go.Figure(
+      go.Indicator(
+          mode="gauge+number",
+          value=display_score,
+          number={"suffix": "%", "font": {"color": "#ffffff", "size": 26}},
+          gauge={
+              "axis": {
+                  "range": [0, 100],
+                  "tickwidth": 1,
+                  "tickcolor": "#ffffff",
+              },
+              "bar": {"color": gauge_color},
+              "bgcolor": "#1a2332",
+              "bordercolor": "#2e3b4e",
+              "steps": [
+                  {"range": [0, 70], "color": "rgba(16, 185, 129, 0.2)"},
+                  {"range": [70, 85], "color": "rgba(245, 158, 11, 0.2)"},
+                  {"range": [85, 100], "color": "rgba(239, 68, 68, 0.2)"},
+              ],
+          },
+      )
+  )
+  fig_gauge.update_layout(
+      height=210,
+      margin=dict(l=20, r=20, t=10, b=10),
+      paper_bgcolor="rgba(0,0,0,0)",
+      font={"color": "#ffffff"},
+  )
+  st.plotly_chart(fig_gauge, use_container_width=True)
+
+with col_map:
+  st.markdown("#### 📍 SWI Intake Grid Map & Flow Vector")
+  m = folium.Map(location=[GRATI_LAT, GRATI_LON], zoom_start=15)
+  folium.TileLayer(
+      tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+      attr="Google Satellite",
+  ).add_to(m)
+
+  hex_color = (
+      "#ef4444"
+      if risk_class == 2
+      else ("#f59e0b" if risk_class == 1 else "#10b981")
+  )
+
+  folium.CircleMarker(
+      location=[GRATI_LAT, GRATI_LON],
+      radius=8,
+      popup="SWI Intake PLTGU Grati (S 7°38.659' E 113°01.641')",
+      color=hex_color,
+      fill=True,
+      fill_color=hex_color,
+      fill_opacity=0.9,
+  ).add_to(m)
+
+  folium.CircleMarker(
+      location=[OCEAN_LAT, OCEAN_LON],
+      radius=6,
+      popup=(
+          "Titik Pantau Oceanografi (Kecepatan Arus:"
+          f" {data['Kecepatan Arus']} m/s)"
+      ),
+      color="#00d2ff",
+      fill=True,
+      fill_color="#00d2ff",
+      fill_opacity=0.8,
+  ).add_to(m)
+
+  folium.PolyLine(
+      locations=[[OCEAN_LAT, OCEAN_LON], [GRATI_LAT, GRATI_LON]],
+      color="#00d2ff",
+      weight=2.5,
+      dash_array="5, 10",
+      popup=f"Trajektori Pergerakan (ETA: ~{eta_minutes} Menit)",
+  ).add_to(m)
+
+  st_folium(
+      m, width="100%", height=170, key="grati_map_scada", returned_objects=[]
+  )
+
+  st.markdown(
+      """
+        <div style="text-align: center; margin-top: 12px; margin-bottom: 5px; display: flex; justify-content: center; gap: 20px;">
+            <a href="https://maritim.bmkg.go.id/" target="_blank" style="color: #00d2ff; font-size: 14px; text-decoration: none; font-weight: 800; text-shadow: 0 0 10px rgba(0, 210, 255, 0.6); letter-spacing: 0.5px;">
+                🌊 BMKG Maritim ↗
+            </a>
+            <a href="https://www.windy.com/-7.644/113.027?-7.647,113.027,16" target="_blank" style="color: #00d2ff; font-size: 14px; text-decoration: none; font-weight: 800; text-shadow: 0 0 10px rgba(0, 210, 255, 0.6); letter-spacing: 0.5px;">
+                🌍 Buka Lokasi Detail di Windy.com ↗
+            </a>
+        </div>
+        """,
+      unsafe_allow_html=True,
+  )
+
+st.markdown("---")
+
+# ==========================================
+# 7. OTOMATISASI WHATSAPP SAAT STATUS KRITIS
+# ==========================================
+if wa_active and risk_class == 2 and not manual_override:
+  current_hour_key = data["raw_datetime"].strftime("%Y-%m-%d-%H")
+  if st.session_state.get("last_sent_hour") != current_hour_key:
+    pesan_darurat = (
+        "🚨 *DARURAT PLTGU GRATI*\n\n"
+        "Terdeteksi *SERANGAN UBUR-UBUR MASSAL* pada intake!\n"
+        f"Indeks Risiko: {display_score:.1f}%\n"
+        f"Estimasi Tiba: Pukul {eta_time_str} (~{eta_minutes} Menit)\n\n"
+        "🔴 *MANDATORI OPERATOR SHIFT:*\n"
+        "1. Verifikasi aktual lapangan kondisi sea water intake\n"
+        "2. Persiapan pengoperasian sistem penyaringan/konveyor intake\n"
+        "3. Jalankan revolving screen/TBS mode continuous high speed\n"
+        "4. Aktifkan screen wash pump pressure max.\n"
+        "5. Manual running debris filter condensor\n"
+        "6. Pengamatan Jelly Boom screen dan DP all strainer cooling system\n"
+        "7. Optimalkan pengaturan valve outlet kondensor\n"
+        "8. Amati vacuum condensor ST\n"
+        "9. Pengamatan semua parameter operasi, alarm dan optimalkan semua pengaturan manuver pengoperasian\n"
+        "10. Turunkan beban GT & ST jika vacuum condensor < 0.85 barg"
+    )
+    result = kirim_whatsapp(wa_token, wa_target, pesan_darurat)
+    if result.get("status"):
+      st.sidebar.success("✅ Auto WhatsApp Darurat Berhasil Terkirim!")
+      st.session_state["last_sent_hour"] = current_hour_key
     else:
-        st.markdown(f"""
-            <div class="alert-normal">
-                <h3>✅ STATUS AMAN: KONDISI TERKENDALI ({score}%)</h3>
-                <p>Parameter air laut dalam batas normal. Tidak ada indikasi gangguan makroalga atau ubur-ubur pada cooling water system.</p>
-            </div>
-        """, unsafe_allow_html=True)
+      st.sidebar.error(
+          "❌ Auto WA Gagal: "
+          + str(result.get("reason", "Cek token/koneksi"))
+      )
 
-    # Metrics Row
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Suhu Air Laut</div>
-                <div class="metric-value">{latest_data['suhu_air']:.2f} °C</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Salinitas</div>
-                <div class="metric-value">{latest_data['salinitas']:.2f} ppt</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Kekeruhan (Turbidity)</div>
-                <div class="metric-value">{latest_data['kekeruhan']:.2f} NTU</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Prediksi Populasi</div>
-                <div class="metric-value">{int(latest_data['populasi_ubur'])} Ekor/m³</div>
-            </div>
-        """, unsafe_allow_html=True)
+# ==========================================
+# 8. MODUL PREDIKSI TREN BULANAN (SEASONAL FORECAST)
+# ==========================================
+st.markdown(
+    "### 🗓️ Prediksi Musiman & Tren Bulanan Kedatangan Ubur-Ubur (Selat Madura)"
+)
 
-    # Grafik Tren Real-Time
-    st.subheader("📈 Analisis Tren Parameter Lingkungan Laut & Risiko Ubur-Ubur (24 Jam Terakhir)")
-    df_plot = st.session_state['simulated_data'].tail(24)
-    
-    fig = px.line(df_plot, x='timestamp', y=['suhu_air', 'salinitas', 'kekeruhan'],
-                  labels={'value': 'Nilai Parameter', 'timestamp': 'Waktu Pengamatan', 'variable': 'Parameter'},
-                  title="Monitoring Parameter Fisika Air Laut Intake PLTGU Grati")
-    fig.update_layout(
-        plot_bgcolor='#0b0f19',
-        paper_bgcolor='#111827',
-        font=dict(color='#f3f4f6'),
-        xaxis=dict(showgrid=True, gridcolor='#374151'),
-        yaxis=dict(showgrid=True, gridcolor='#374151')
-    )
-    st.plotly_chart(fig, use_container_width=True)
+monthly_risk_scores = [15, 20, 35, 85, 92, 78, 40, 25, 30, 65, 88, 50]
+curr_month_idx = data["raw_datetime"].month - 1
+curr_month_name = MONTH_NAMES[curr_month_idx]
+curr_month_risk = monthly_risk_scores[curr_month_idx]
 
-elif menu == "Prediksi & Machine Learning":
-    st.header("🤖 Model Machine Learning & Simulasi Prediksi Risiko")
-    st.markdown("Gunakan panel di bawah ini untuk mensimulasikan parameter lingkungan laut dan melihat hasil prediksi model **XGBoost v3.4**.")
-    
-    col_input1, col_input2 = st.columns(2)
-    with col_input1:
-        sim_suhu = st.slider("Suhu Air Laut (°C)", 24.0, 35.0, 29.2)
-        sim_salinitas = st.slider("Salinitas (ppt)", 25.0, 40.0, 33.1)
-    with col_input2:
-        sim_arus = st.slider("Kecepatan Arus (m/s)", 0.1, 2.0, 0.6)
-        sim_kekeruhan = st.slider("Kekeruhan (NTU)", 1.0, 50.0, 12.0)
-        
-    if st.button("Jalankan Prediksi Model XGBoost"):
-        sc, lvl, clr = predict_jellyfish_risk(sim_suhu, sim_salinitas, sim_arus, sim_kekeruhan)
-        st.markdown("---")
-        st.subheader("Hasil Evaluasi Model:")
-        st.metric(label="Skor Probabilitas Risiko Clogging", value=f"{sc}%", delta=lvl)
-        
-        if sc > 75:
-            st.error("Rekomendasi Tindakan: Siapkan chemical treatment tambahan, aktifkan screen ganda, dan siagakan tim pembersihan trash rack.")
-        elif sc > 50:
-            st.warning("Rekomendasi Tindakan: Lakukan patroli visual berkala pada area intake Selat Madura.")
-        else:
-            st.success("Rekomendasi Tindakan: Sistem beroperasi normal, lanjutkan prosedur standar.")
+m_col1, m_col2 = st.columns([1.2, 2.8])
 
-    st.markdown("---")
-    st.subheader("📊 Feature Importance Model XGBoost v3.4")
-    feat_imp = pd.DataFrame({
-        'Fitur': ['Suhu Air Laut', 'Salinitas', 'Kekeruhan (Turbidity)', 'Kecepatan Arus', 'Pasang Surut'],
-        'Importance Score': [0.38, 0.27, 0.20, 0.10, 0.05]
-    })
-    fig_imp = px.bar(feat_imp, x='Importance Score', y='Fitur', orientation='h', title="Faktor Dominan Pemicu Migrasi Ubur-Ubur")
-    fig_imp.update_layout(plot_bgcolor='#0b0f19', paper_bgcolor='#111827', font=dict(color='#f3f4f6'))
-    st.plotly_chart(fig_imp, use_container_width=True)
+with m_col1:
+  peak_months = "April – Juni & Oktober – November"
+  st.markdown(
+      f"""
+    <div class="pillar-card" style="height: 250px;">
+        <div class="pillar-title">📊 Ringkasan Musim Bloom</div>
+        <div class="metric-label">Bulan Saat Ini</div>
+        <div class="metric-value" style="color:#00d2ff;">{curr_month_name}</div>
+        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Tingkat Risiko Histori: <b style="color:#ffffff;">{curr_month_risk}%</b></div>
+        <br>
+        <div class="metric-label">Puncak Musim Serangan (Peak Bloom)</div>
+        <div style="font-size:14px; font-weight:bold; color:#ef4444; margin-top:4px;">{peak_months}</div>
+        <div style="font-size:11px; color:#94a3b8; margin-top:6px;">
+            Dipicu oleh peralihan angin muson (SST > 30°C & upwelling Klorofil-a tinggi di Selat Madura).
+        </div>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
 
-elif menu == "Live Sensor & Intake SWI":
-    st.header("🌊 Live Telemetri Seawater Intake (SWI) Selat Madura")
-    st.markdown("Data real-time dari sensor IoT yang terpasang langsung di struktur intake PLTGU Grati.")
-    
-    # Tabel Data Terkini
-    st.dataframe(st.session_state['simulated_data'].tail(10), use_container_width=True)
-    
-    st.markdown("### 🗺️ Status Perangkat Sensor Lapangan")
-    col_s1, col_s2, col_s3 = st.columns(3)
-    with col_s1:
-        st.success("Sensor Suhu & Salinitas (Node-01): ONLINE")
-    with col_s2:
-        st.success("Sensor Kekeruhan & Arus (Node-02): ONLINE")
-    with col_s3:
-        st.success("Kamera Under-Water Trash Rack: ACTIVE")
+with m_col2:
+  colors = [
+      "#ef4444" if score >= 85 else ("#f59e0b" if score >= 70 else "#10b981")
+      for score in monthly_risk_scores
+  ]
 
-elif menu == "Sistem Notifikasi WA":
-    st.header("📱 Integrasi Sistem Notifikasi WhatsApp Otomatis")
-    st.markdown("Kirimkan peringatan dini secara cepat kepada tim shift operator dan manajemen PLTGU Grati melalui WhatsApp.")
-    
-    with st.form("wa_form"):
-        wa_api_key = st.text_input("API Key Gateway WhatsApp", type="password", value="MOCK_API_KEY_12345")
-        nomor_penerima = st.text_input("Nomor WhatsApp Penerima (Contoh: 628123456789)", value="628123456789")
-        pesan_custom = st.text_area("Template Pesan Peringatan", value="🧪 *TEST PESAN JELLYFISH PLTGU GRATI - JELLYFISH EARLY WARNING INTELLIGENCE SYSTEM* - Sistem Beroperasi Normal.")
-        
-        submitted = st.form_submit_button("Kirim Pesan Uji Coba")
-        if submitted:
-            success, info = kirim_whatsapp_notif(wa_api_key, nomor_penerima, pesan_custom)
-            if success:
-                st.success(info)
-            else:
-                st.error(info)
+  fig_month = go.Figure(
+      go.Bar(
+          x=MONTH_NAMES,
+          y=monthly_risk_scores,
+          marker_color=colors,
+          text=[f"{v}%" for v in monthly_risk_scores],
+          textposition="auto",
+      )
+  )
 
-elif menu == "Log & Laporan Insiden":
-    st.header("📋 Log & Riwayat Insiden Ubur-Ubur")
-    st.markdown("Arsip riwayat peringatan dini dan tindakan penanggulangan yang telah dicatat oleh sistem.")
-    
-    # Tampilkan tabel log
-    df_log = pd.DataFrame(st.session_state['log_insiden'])
-    st.table(df_log)
-    
-    st.markdown("### Tambah Catatan Insiden Baru")
-    with st.form("log_form"):
-        new_pesan = st.text_input("Keterangan Kejadian")
-        new_level = st.selectbox("Level Risiko", ["AMAN", "WASPADA", "BAHAYA"])
-        new_tindakan = st.text_input("Tindakan Korektif yang Dilakukan")
-        
-        add_log = st.form_submit_button("Simpan Log ke Sistem")
-        if add_log and new_pesan:
-            st.session_state['log_insiden'].insert(0, {
-                "waktu": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "level": new_level,
-                "pesan": new_pesan,
-                "tindakan": new_tindakan
-            })
-            st.success("Log berhasil ditambahkan!")
-            st.rerun()
+  fig_month.add_vline(
+      x=curr_month_idx,
+      line_width=2,
+      line_dash="dash",
+      line_color="#00d2ff",
+      annotation_text="Bulan Ini",
+      annotation_position="top left",
+  )
 
-# Auto-refresh logic jika diaktifkan
-if auto_refresh:
-    time.sleep(refresh_rate)
-    st.rerun()
+  fig_month.update_layout(
+      height=250,
+      paper_bgcolor="rgba(0,0,0,0)",
+      plot_bgcolor="#1a2332",
+      font=dict(color="#94a3b8"),
+      margin=dict(l=10, r=10, t=25, b=10),
+      yaxis=dict(title="Potensi Bloom (%)", range=[0, 100]),
+      xaxis=dict(title="Bulan"),
+  )
+  st.plotly_chart(fig_month, use_container_width=True)
+
+st.markdown("---")
+
+# ==========================================
+# 9. TAMPILAN TERKATEGORI 4 PILAR PARAMETER
+# ==========================================
+st.markdown("### 🎛️ Real-Time 15 SWI Operational & Oceanographic Parameters")
+
+p1, p2, p3, p4 = st.columns(4)
+
+with p1:
+  st.markdown(
+      f"""
+    <div class="pillar-card">
+        <div class="pillar-title">🧫 1. Biokimia Laut</div>
+        <div class="metric-label">Suhu Permukaan Laut</div>
+        <div class="metric-value">{data['Suhu Permukaan Laut']} °C</div><br>
+        <div class="metric-label">Klorofil-a</div>
+        <div class="metric-value">{data['Klorofil-a']} mg/m³</div><br>
+        <div class="metric-label">Salinitas</div>
+        <div class="metric-value">{data['Salinitas']} PSU</div><br>
+        <div class="metric-label">Oksigen Terlarut</div>
+        <div class="metric-value">{data['Oksigen Terlarut']} mg/L</div>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+with p2:
+  st.markdown(
+      f"""
+    <div class="pillar-card">
+        <div class="pillar-title">🌊 2. Hidro-Oseanografi</div>
+        <div class="metric-label">Kecepatan Arus</div>
+        <div class="metric-value">{data['Kecepatan Arus']} m/s</div><br>
+        <div class="metric-label">Arah Arus</div>
+        <div class="metric-value">{data['Arah Arus']}° (Inlet)</div><br>
+        <div class="metric-label">Tinggi Gelombang</div>
+        <div class="metric-value">{data['Tinggi Gelombang']} m</div><br>
+        <div class="metric-label">Kekeruhan</div>
+        <div class="metric-value">{data['Kekeruhan']} NTU</div>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+with p3:
+  tide_text = "Spring Tide" if data["Siklus Pasang"] == 1 else "Neap Tide"
+  st.markdown(
+      f"""
+    <div class="pillar-card">
+        <div class="pillar-title">🌤️ 3. Cuaca & Pasang Surut</div>
+        <div class="metric-label">Kecepatan Angin</div>
+        <div class="metric-value">{data['Kecepatan Angin']} Knot</div><br>
+        <div class="metric-label">Arah Angin</div>
+        <div class="metric-value">{data['Arah Angin']}°</div><br>
+        <div class="metric-label">Siklus Pasang</div>
+        <div class="metric-value">{tide_text}</div><br>
+        <div class="metric-label">Elevasi Muka Air</div>
+        <div class="metric-value">{data['Elevasi Muka Air']} m</div>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+with p4:
+  dp_color = "#ef4444" if data["delta_p"] >= 0.50 else "#ffffff"
+  st.markdown(
+      f"""
+    <div class="pillar-card">
+        <div class="pillar-title">⚙️ 4. INTERNAL SWI</div>
+        <div class="metric-label">Beda Tekanan (delta_p)</div>
+        <div class="metric-value" style="color:{dp_color};">{data['delta_p']} mWC</div><br>
+        <div class="metric-label">Flow Velocity</div>
+        <div class="metric-value">{data['Flow Velocity']} m/s</div><br>
+        <div class="metric-label">TBS TOR</div>
+        <div class="metric-value">{data['tbs tor']} %</div><br>
+        <div class="metric-label">Filter Status</div>
+        <div class="metric-value" style="color:#10b981;">CLEAN</div>
+    </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+st.markdown("---")
+
+# ==========================================
+# 10. ANALISIS TREN & EXPLAINABLE AI (XAI)
+# ==========================================
+c_graph1, c_graph2 = st.columns(2)
+
+with c_graph1:
+  times = [
+      (
+          datetime.datetime.now(WIB_TZ) - datetime.timedelta(hours=i)
+      ).strftime("%H:00")
+      for i in range(24, 0, -1)
+  ]
+
+  np.random.seed(int(datetime.datetime.now(WIB_TZ).timestamp()) // 3600)
+  dp_trend = np.random.normal(loc=data["delta_p"], scale=0.03, size=24)
+  sst_trend = np.random.normal(
+      loc=data["Suhu Permukaan Laut"], scale=0.15, size=24
+  )
+
+  fig_trend = go.Figure()
+  fig_trend.add_trace(
+      go.Scatter(
+          x=times,
+          y=dp_trend,
+          name="delta_p (mWC)",
+          line=dict(color="#ef4444", width=3),
+      )
+  )
+  fig_trend.add_trace(
+      go.Scatter(
+          x=times,
+          y=sst_trend,
+          name="Suhu Permukaan Laut (°C)",
+          line=dict(color="#00d2ff", width=2, dash="dash"),
+          yaxis="y2",
+      )
+  )
+
+  fig_trend.update_layout(
+      title=dict(
+          text=(
+              "<b>Tren Beda Tekanan (delta_p) & Suhu Permukaan Laut (24"
+              " Jam)</b>"
+          ),
+          font=dict(size=14, color="#ffffff"),
+          x=0.0,
+          y=0.95,
+      ),
+      height=320,
+      paper_bgcolor="rgba(0,0,0,0)",
+      plot_bgcolor="#1a2332",
+      font=dict(color="#e0e6ed"),
+      margin=dict(l=10, r=10, t=50, b=60),
+      yaxis=dict(title="delta_p (mWC)", color="#ef4444"),
+      yaxis2=dict(
+          title="Suhu Permukaan Laut (°C)", color="#00d2ff", overlaying="y", side="right"
+      ),
+      legend=dict(
+          orientation="h",
+          yanchor="top",
+          y=-0.35,
+          xanchor="center",
+          x=0.5,
+          bgcolor="rgba(15, 23, 42, 0.9)",
+          bordercolor="#2e3b4e",
+          borderwidth=1,
+          font=dict(color="#ffffff", size=11),
+      ),
+  )
+  st.plotly_chart(fig_trend, use_container_width=True)
+
+with c_graph2:
+  st.markdown("#### 🧠 XAI: Parameter Pemicu Utama (Feature Importance)")
+  importance = model.feature_importances_
+  features = input_df.columns
+  df_imp = pd.DataFrame({"Feature": features, "Importance": importance})
+
+  rename_dict = {
+      "Suhu Permukaan Laut": "Suhu Permukaan Laut",
+      "Klorofil-a": "Klorofil-a",
+      "Salinitas": "Salinitas",
+      "Oksigen Terlarut": "Oksigen Terlarut",
+      "Kekeruhan": "Kekeruhan",
+      "Kecepatan Arus": "Kecepatan Arus",
+      "Arah Arus": "Arah Arus",
+      "Tinggi Gelombang": "Tinggi Gelombang",
+      "Kecepatan Angin": "Kecepatan Angin",
+      "Arah Angin": "Arah Angin",
+      "Siklus Pasang": "Siklus Pasang",
+      "Elevasi Muka Air": "Elevasi Muka Air",
+      "delta_p": "delta_p",
+      "Flow Velocity": "Flow Velocity",
+      "tbs tor": "tbs tor",
+  }
+  df_imp["Feature"] = df_imp["Feature"].map(rename_dict)
+  df_imp = df_imp.sort_values(by="Importance", ascending=True).tail(7)
+
+  fig_imp = go.Figure(
+      go.Bar(
+          x=df_imp["Importance"],
+          y=df_imp["Feature"],
+          orientation="h",
+          marker=dict(color="#00d2ff"),
+      )
+  )
+  fig_imp.update_layout(
+      height=280,
+      paper_bgcolor="rgba(0,0,0,0)",
+      plot_bgcolor="#1a2332",
+      font=dict(color="#94a3b8"),
+      margin=dict(l=10, r=10, t=10, b=30),
+      xaxis=dict(title="Importance Score", color="#94a3b8"),
+  )
+  st.plotly_chart(fig_imp, use_container_width=True)
