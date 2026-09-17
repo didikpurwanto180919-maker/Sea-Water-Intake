@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 # 1. KONFIGURASI HALAMAN & CUSTOM CSS SCADA UI
 # ==========================================
 st.set_page_config(
-    page_title="JELLY-MARVEL Intelligence System - PLTGU Grati",
+    page_title="JELLYFISH Intelligence System - PLTGU Grati",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -372,7 +372,7 @@ model, train_df = train_high_precision_model()
 # ==========================================
 # 5. SIDEBAR & INPUT SELECTION
 # ==========================================
-st.sidebar.header("🤖 JELLY-MARVEL INTELLIGENCE SYSTEM Control Panel")
+st.sidebar.header("🤖 JELLYFISH INTELLIGENCE SYSTEM Control Panel")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📱 Konfigurasi WhatsApp Alert")
@@ -402,7 +402,7 @@ if st.sidebar.button("🚀 Test Kirim WhatsApp"):
     st.sidebar.warning("⚠️ Masukkan nomor HP atau Group ID terlebih dahulu!")
   else:
     with st.spinner("Mengirim pesan..."):
-      test_pesan = "🧪 *TEST PESAN JELLY-MARVEL PLTGU GRATI* - Sistem Beroperasi Normal."
+      test_pesan = "🧪 *TEST PESAN JELLYFISH PLTGU GRATI* - Sistem Beroperasi Normal."
       res = kirim_whatsapp(wa_token, wa_target, test_pesan)
       if res.get("status"):
         st.sidebar.success("✅ Terkirim ke Target!")
@@ -565,7 +565,7 @@ st.markdown(
 <div class="executive-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="executive-title">🤖 JELLY-MARVEL INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
+            <div class="executive-title">🤖 JELLYFISH INTELLIGENCE SYSTEM PLTGU GRATI BERBASIS MACHINE LEARNING</div>
             <div class="executive-subtitle">JELLYFISH EARLY-WARNING & MODULAR CONVEYOR INTELLIGENCE SYSTEM — SWI INTAKE SELAT MADURA | XGBoost ML v3.4</div>
         </div>
         <div style="text-align: right;">
